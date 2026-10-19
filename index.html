@@ -93,6 +93,8 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
 .modal label{display:block;font-size:12px;color:var(--brown);margin:12px 0 5px}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .empty{font-size:12px;color:var(--brown);padding:10px 0}
+.sync-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 18px;font-size:12px;color:var(--brown)}
+.sync-bar #syncStatus{flex:1 1 100%}
 @media(max-width:700px){
  .hero{min-height:76vh;background-position:57% center}
  .intro{grid-template-columns:1fr;gap:22px;padding:38px 0 28px}
@@ -137,7 +139,8 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
   </section>
 
   <section id="itinerary">
-    <div class="section-head"><div><div class="kicker">01 / Itinerary</div><h2>五日散策行程</h2></div><div class="muted">勾選景點後會自動保存於這台裝置</div></div>
+    <div class="section-head"><div><div class="kicker">01 / Itinerary</div><h2>五日散策行程</h2></div><div class="muted">勾選、新增、編輯都會自動保存；開啟同步後兩人即時連動</div></div>
+    <div class="sync-bar"><span id="syncStatus">☁ 尚未開啟同步（資料只存在這台裝置）</span><button class="outline-btn" onclick="setupSync()">設定同步代碼</button><button class="outline-btn" onclick="copyInvite()">複製邀請連結</button></div>
     <div class="day-tabs" id="dayTabs"></div>
     <div class="day-banner"><div><h3 id="dayTitle"></h3><p id="dayTheme"></p></div><div class="progress-wrap"><div class="progress-label"><span>今日完成進度</span><span id="progressText">0%</span></div><div class="progress"><span id="progressBar"></span></div></div></div>
     <div class="day-content" id="dayContent"></div>
@@ -147,6 +150,7 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
       <button class="outline-btn" onclick="document.getElementById('importFile').click()">匯入備份</button>
       <input id="importFile" type="file" accept="application/json" hidden onchange="importData(event)">
       <button class="outline-btn" onclick="resetChecks()">重設完成勾選</button>
+      <button class="outline-btn" onclick="resetItinerary()">還原預設行程</button>
     </div>
   </section>
 
@@ -190,7 +194,7 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
   </section>
 
   <section>
-    <div class="section-head"><div><div class="kicker">04 / Notes</div><h2>旅行備忘錄</h2></div><div class="muted">備註會自動保存在目前瀏覽器。</div></div>
+    <div class="section-head"><div><div class="kicker">04 / Notes</div><h2>旅行備忘錄</h2></div><div class="muted">備註會自動保存；開啟同步後兩人共用。</div></div>
     <div class="panel"><textarea id="memo" rows="5" placeholder="預約資訊、地址、想記住的事……"></textarea><div class="note" id="memoStatus">自動保存於目前裝置</div></div>
   </section>
 </main>
@@ -207,6 +211,8 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const initialDays = [
  {date:"11.26",dow:"THU",theme:"抵達東京・麻布台與六本木藝文散策",flight:"捷星 GK012｜TPE → NRT｜02:00–06:55",periods:[
@@ -241,7 +247,7 @@ let state = loadState();
 let currentDay = 0;
 function freshState(){return {days:JSON.parse(JSON.stringify(initialDays)).map((d,i)=>({...d,periods:d.periods.map(p=>({...p,items:p.items.map((x,j)=>({id:`d${i}-p${d.periods.indexOf(p)}-${j}`,title:x[0],note:x[1],done:false}))}))})),shopping:[],expenses:[],rate:0.22,budget:100000,memo:""}}
 function loadState(){try{const saved=localStorage.getItem(STORAGE_KEY);if(saved){const parsed=JSON.parse(saved);if(parsed.days&&parsed.shopping&&parsed.expenses)return parsed}}catch(e){}return freshState()}
-function saveState(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){alert("目前瀏覽器無法保存資料，請匯出 JSON 備份。")}}
+function saveState(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){alert("目前瀏覽器無法保存資料，請匯出 JSON 備份。")}schedulePush()}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function money(n){return "¥"+Math.round(Number(n)||0).toLocaleString("ja-JP")}
 function renderTabs(){document.getElementById("dayTabs").innerHTML=state.days.map((d,i)=>`<button class="day-tab ${i===currentDay?"active":""}" onclick="selectDay(${i})"><span class="day">DAY 0${i+1}</span><span class="date">${d.date} ${d.dow}</span></button>`).join("")}
@@ -274,11 +280,101 @@ document.getElementById("tripBudget").addEventListener("input",e=>{state.budget=
 document.getElementById("memo").addEventListener("input",e=>{state.memo=e.target.value;saveState();document.getElementById("memoStatus").textContent="已自動保存 · "+new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})});
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="tokyo-sansaku-backup.json";a.click();URL.revokeObjectURL(url)}
 function importData(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!data.days||!data.shopping||!data.expenses)throw new Error("格式不正確");if(!confirm("匯入會以備份內容取代目前網站資料，確定繼續？"))return;state=data;saveState();currentDay=0;syncInputs();renderAll();alert("匯入成功。")}catch(err){alert("匯入失敗：檔案格式不正確或內容不完整。")}e.target.value=""};reader.readAsText(file)}
-function syncInputs(){document.getElementById("exchangeRate").value=state.rate??0.22;document.getElementById("tripBudget").value=state.budget??100000;document.getElementById("memo").value=state.memo||""}
+function setVal(id,v){const el=document.getElementById(id);if(document.activeElement!==el)el.value=v}
+function syncInputs(){setVal("exchangeRate",state.rate??0.22);setVal("tripBudget",state.budget??100000);setVal("memo",state.memo||"")}
 function renderAll(){renderDay();renderShopping();renderExpenses();syncInputs()}
 document.getElementById("modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeAddModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAddModal()});
 renderAll();
+
+/* ===== 雲端同步（Firebase Firestore）===== */
+const firebaseConfig={
+  apiKey:"AIzaSyD8xywUEfPIHpiEpwqlV6PwbF1bMi06pMk",
+  authDomain:"tokyo-trip-35c69.firebaseapp.com",
+  projectId:"tokyo-trip-35c69",
+  storageBucket:"tokyo-trip-35c69.firebasestorage.app",
+  messagingSenderId:"808547282669",
+  appId:"1:808547282669:web:f6aa39aad6522d1edba6e4"
+};
+const CODE_KEY="tokyo-sync-code";
+let db=null,syncRef=null,syncUnsub=null,pushTimer=null;
+function nowText(){return new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})}
+function setSyncStatus(t){const el=document.getElementById("syncStatus");if(el)el.textContent=t}
+function validCode(c){return /^[A-Za-z0-9_-]{8,40}$/.test(c||"")}
+function initFirebase(){
+  try{
+    if(!window.firebase)throw new Error("no sdk");
+    firebase.initializeApp(firebaseConfig);
+    db=firebase.firestore();
+    db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+    return true;
+  }catch(e){setSyncStatus("☁ 雲端功能無法載入，目前只存在這台裝置");return false}
+}
+function syncError(err){
+  const msg=err&&err.code==="permission-denied"?"沒有權限，請檢查 Firestore 規則":"請檢查網路，恢復後會自動補上";
+  setSyncStatus("☁ 同步失敗："+msg);
+}
+function startSync(code){
+  if(!db)return;
+  if(syncUnsub){syncUnsub();syncUnsub=null}
+  syncRef=db.collection("trips").doc(code);
+  setSyncStatus("☁ 連線中…");
+  syncUnsub=syncRef.onSnapshot(snap=>{
+    if(snap.metadata.hasPendingWrites)return;
+    if(!snap.exists){pushNow();return}
+    try{
+      const data=JSON.parse(snap.data().data);
+      if(!data.days||!data.shopping||!data.expenses)throw new Error("bad data");
+      if(JSON.stringify(data)!==JSON.stringify(state)){
+        state=data;
+        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}
+        if(currentDay>=state.days.length)currentDay=0;
+        renderAll();
+      }
+      setSyncStatus("☁ 已同步 · "+nowText()+"　（代碼 "+code+"）");
+    }catch(e){setSyncStatus("☁ 雲端資料格式有誤")}
+  },syncError);
+}
+function schedulePush(){
+  if(!syncRef)return;
+  setSyncStatus("☁ 同步中…");
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(pushNow,600);
+}
+function pushNow(){
+  if(!syncRef)return;
+  syncRef.set({data:JSON.stringify(state),updatedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    .then(()=>setSyncStatus("☁ 已同步 · "+nowText()+"　（代碼 "+localStorage.getItem(CODE_KEY)+"）"))
+    .catch(syncError);
+}
+function setupSync(){
+  if(!db){alert("雲端功能目前無法載入，請確認網路後重新整理。");return}
+  const old=localStorage.getItem(CODE_KEY)||"";
+  const c=prompt("請輸入旅行代碼（8～40 個英文或數字，兩個人輸入同一組）。\n若這組代碼雲端已有資料，會以雲端為準。\n建議取難猜一點，例如 tokyo1126-abc123",old);
+  if(c===null)return;
+  const code=c.trim();
+  if(!validCode(code)){alert("代碼需為 8～40 個英文、數字、_ 或 -，不能有空格或中文。");return}
+  localStorage.setItem(CODE_KEY,code);
+  startSync(code);
+}
+function copyInvite(){
+  const code=localStorage.getItem(CODE_KEY);
+  if(!code){alert("請先按「設定同步代碼」。");return}
+  const link=location.origin+location.pathname+"?code="+encodeURIComponent(code);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(()=>alert("已複製邀請連結，傳給對方打開就會自動連動。")).catch(()=>prompt("請長按複製這個連結：",link));
+  }else{prompt("請長按複製這個連結：",link)}
+}
+function resetItinerary(){
+  if(!confirm("確定還原為預設五日行程？\n所有景點的勾選與你新增、編輯過的景點會被取代；購物清單、支出、備忘錄不受影響。"))return;
+  state.days=freshState().days;currentDay=0;saveState();renderDay();
+}
+if(initFirebase()){
+  const urlCode=new URLSearchParams(location.search).get("code");
+  let code=localStorage.getItem(CODE_KEY);
+  if(urlCode&&validCode(urlCode)){code=urlCode;localStorage.setItem(CODE_KEY,code)}
+  if(code)startSync(code);
+}
 </script>
 </body>
 </html>
