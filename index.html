@@ -10,6 +10,7 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--cream);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.65}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 a{color:inherit}
@@ -20,7 +21,7 @@ a{color:inherit}
 h1{font-family:"Noto Serif TC","Songti TC","PMingLiU",serif;font-weight:500;font-size:clamp(42px,8vw,100px);line-height:1.12;letter-spacing:.06em;margin:0;max-width:900px}
 .hero-en{font-family:Georgia,serif;font-size:clamp(16px,2vw,22px);letter-spacing:.08em;margin:22px 0 8px}
 .hero-date{font-size:13px;letter-spacing:.22em;margin:0 0 28px}
-.primary-btn{border:0;background:var(--red);color:white;padding:13px 22px;letter-spacing:.08em;transition:.2s}
+.primary-btn{white-space:nowrap;border:0;background:var(--red);color:white;padding:13px 22px;letter-spacing:.08em;transition:.2s}
 .primary-btn:hover{background:#c93620;transform:translateY(-1px)}
 main{max-width:1180px;margin:auto;padding:0 clamp(16px,4vw,48px) 80px}
 .intro{display:grid;grid-template-columns:1.2fr .8fr;gap:36px;padding:56px 0 34px;border-bottom:1px solid var(--line)}
@@ -109,6 +110,12 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
  .cards-grid{grid-template-columns:1fr}
  .section-head{align-items:start;flex-direction:column;margin-top:38px}
  .footer{align-items:flex-start;flex-direction:column}
+ input[type=text],input[type=number],input[type=date],select,textarea{font-size:16px}
+ #shoppingForm{flex-wrap:wrap}
+ #shoppingForm #shopName{flex:1 1 100%}
+ #shoppingForm #shopStore{flex:1 1 55%;width:auto}
+ #shoppingForm #shopPrice{flex:1 1 35%;width:auto}
+ #shoppingForm .primary-btn{flex:1 1 100%}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
 </style>
@@ -255,7 +262,7 @@ function renderDay(){
  const d=state.days[currentDay];document.getElementById("dayTitle").textContent=`DAY 0${currentDay+1}　${d.date}（${d.dow}）`;document.getElementById("dayTheme").textContent=d.theme+(d.flight?"　｜　"+d.flight:"");
  const all=d.periods.flatMap(p=>p.items),done=all.filter(x=>x.done).length,pct=all.length?Math.round(done/all.length*100):0;
  document.getElementById("progressText").textContent=`${pct}%　(${done}/${all.length})`;document.getElementById("progressBar").style.width=pct+"%";
- document.getElementById("dayContent").innerHTML=d.periods.map((p,pi)=>`<div class="period"><div class="period-label">${esc(p.name)}</div><div class="items">${p.items.map(item=>`<article class="item ${item.done?"done":""}"><input class="check" type="checkbox" aria-label="完成 ${esc(item.title)}" ${item.done?"checked":""} onchange="toggleItem('${item.id}',this.checked)"><div class="item-body"><div class="item-title">${esc(item.title)}${/預約/.test(item.note)?" <span class='tag red'>需預約</span>":""}</div><div class="item-note">${esc(item.note)}</div><div class="item-actions"><button class="text-btn" onclick="openMap('${encodeURIComponent(item.title)}')">Google Maps ↗</button><button class="text-btn" onclick="editItem('${item.id}')">編輯</button><button class="text-btn" onclick="deleteItem('${item.id}')">刪除</button></div></div></article>`).join("")}</div></div>`).join("");
+ document.getElementById("dayContent").innerHTML=d.periods.map((p,pi)=>`<div class="period"><div class="period-label">${esc(p.name)}</div><div class="items">${p.items.map(item=>`<article class="item ${item.done?"done":""}"><input class="check" type="checkbox" aria-label="完成 ${esc(item.title)}" ${item.done?"checked":""} onchange="toggleItem('${item.id}',this.checked)"><div class="item-body"><div class="item-title">${esc(item.title)}${/預約/.test(item.note)?" <span class='tag red'>需預約</span>":""}</div><div class="item-note">${esc(item.note)}</div><div class="item-actions"><button class="text-btn" onclick="openMap('${encodeURIComponent(item.title)}')">Google Maps ↗</button><button class="text-btn" aria-label="往前移" onclick="moveItem('${item.id}',-1)">↑ 上移</button><button class="text-btn" aria-label="往後移" onclick="moveItem('${item.id}',1)">↓ 下移</button><button class="text-btn" onclick="editItem('${item.id}')">編輯</button><button class="text-btn" onclick="deleteItem('${item.id}')">刪除</button></div></div></article>`).join("")}</div></div>`).join("");
  renderTabs()
 }
 function selectDay(i){currentDay=i;renderDay()}
@@ -264,9 +271,24 @@ function toggleItem(id,done){const found=findItem(id);if(found)found.item.done=d
 function openMap(q){window.open("https://www.google.com/maps/search/?api=1&query="+q,"_blank","noopener,noreferrer")}
 function openAddModal(){document.getElementById("newTitle").value="";document.getElementById("newNote").value="";document.getElementById("newDay").innerHTML=state.days.map((d,i)=>`<option value="${i}" ${i===currentDay?"selected":""}>Day ${i+1}｜${d.date}</option>`).join("");document.getElementById("modalBackdrop").classList.add("show");document.getElementById("newTitle").focus()}
 function closeAddModal(){document.getElementById("modalBackdrop").classList.remove("show")}
-function addItem(){const title=document.getElementById("newTitle").value.trim();if(!title){alert("請輸入景點名稱。");return}const di=Number(document.getElementById("newDay").value),periodName=document.getElementById("newPeriod").value,note=document.getElementById("newNote").value.trim();let p=state.days[di].periods.find(p=>p.name===periodName);if(!p){p={name:periodName,items:[]};state.days[di].periods.push(p)}p.items.push({id:"custom-"+Date.now(),title,note,done:false});currentDay=di;saveState();closeAddModal();renderDay()}
+function addItem(){const title=document.getElementById("newTitle").value.trim();if(!title){alert("請輸入景點名稱。");return}const di=Number(document.getElementById("newDay").value),periodName=document.getElementById("newPeriod").value,note=document.getElementById("newNote").value.trim();let p=state.days[di].periods.find(p=>p.name===periodName);if(!p){p={name:periodName,items:[]};const order=["上午","午餐","下午","晚餐","晚上","備選景點"],rk=n=>order.indexOf(n),mine=rk(periodName),at=state.days[di].periods.findIndex(q=>rk(q.name)>mine);if(at===-1)state.days[di].periods.push(p);else state.days[di].periods.splice(at,0,p)}p.items.push({id:"custom-"+Date.now(),title,note,done:false});currentDay=di;saveState();closeAddModal();renderDay()}
 function editItem(id){const f=findItem(id);if(!f)return;const title=prompt("修改景點名稱：",f.item.title);if(title===null)return;if(!title.trim()){alert("名稱不能空白。");return}const note=prompt("修改備註：",f.item.note||"");if(note===null)return;f.item.title=title.trim();f.item.note=note.trim();saveState();renderDay()}
 function deleteItem(id){const f=findItem(id);if(!f)return;if(!confirm(`確定刪除「${f.item.title}」？`))return;state.days[f.di].periods[f.pi].items=state.days[f.di].periods[f.pi].items.filter(x=>x.id!==id);saveState();renderDay()}
+function moveItem(id,dir){
+  const f=findItem(id);if(!f)return;
+  const periods=state.days[f.di].periods,items=periods[f.pi].items,idx=items.findIndex(x=>x.id===id);
+  if(dir<0){
+    if(idx>0){[items[idx-1],items[idx]]=[items[idx],items[idx-1]]}
+    else if(f.pi>0){items.splice(idx,1);periods[f.pi-1].items.push(f.item)}
+    else return;
+  }else{
+    if(idx<items.length-1){[items[idx+1],items[idx]]=[items[idx],items[idx+1]]}
+    else if(f.pi<periods.length-1){items.splice(idx,1);periods[f.pi+1].items.unshift(f.item)}
+    else return;
+  }
+  state.days[f.di].periods=state.days[f.di].periods.filter(q=>q.items.length>0);
+  saveState();renderDay();
+}
 function resetChecks(){if(!confirm("確定重設所有五天行程的完成勾選？其他資料不會被刪除。"))return;state.days.forEach(d=>d.periods.forEach(p=>p.items.forEach(i=>i.done=false)));saveState();renderDay()}
 function renderShopping(){const list=document.getElementById("shoppingList");list.innerHTML=state.shopping.length?state.shopping.map((s,i)=>`<div class="list-row"><label><input type="checkbox" ${s.bought?"checked":""} onchange="toggleShop(${i},this.checked)"> ${esc(s.name)}<small>${esc(s.store||"未填店家")} ${s.price? "· 預算 "+money(s.price):""}</small></label><button onclick="deleteShop(${i})">刪除</button></div>`).join(""):'<div class="empty">清單還是空的，新增第一個想買的商品吧。</div>';document.getElementById("shoppingTotal").textContent=money(state.shopping.reduce((a,s)=>a+(Number(s.price)||0),0))}
 document.getElementById("shoppingForm").addEventListener("submit",e=>{e.preventDefault();const name=document.getElementById("shopName").value.trim();if(!name)return;state.shopping.push({name,store:document.getElementById("shopStore").value.trim(),price:Number(document.getElementById("shopPrice").value)||0,bought:false});e.target.reset();saveState();renderShopping()});
