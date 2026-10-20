@@ -321,7 +321,7 @@ function startSync(code){
   setSyncStatus("☁ 連線中…");
   syncUnsub=syncRef.onSnapshot(snap=>{
     if(snap.metadata.hasPendingWrites)return;
-    if(!snap.exists){pushNow();return}
+    if(!snap.exists){if(!snap.metadata.fromCache)pushNow();return}
     try{
       const data=JSON.parse(snap.data().data);
       if(!data.days||!data.shopping||!data.expenses)throw new Error("bad data");
