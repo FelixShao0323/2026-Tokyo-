@@ -64,6 +64,13 @@ main{max-width:1180px;margin:auto;padding:0 clamp(16px,4vw,48px) 80px}
 .item-title{font-size:14px;font-weight:500;overflow-wrap:anywhere}
 .item-note{font-size:11px;color:var(--brown);margin-top:3px}
 .item-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.drag-hint{margin:0 0 6px;font-size:12px}
+.drag-handle{flex:0 0 12px;width:12px;height:26px;padding:8px 6px;margin:-8px -4px -8px -8px;box-sizing:content-box;background:radial-gradient(circle,#b9ad9b 1.3px,transparent 1.6px) 0 0/6px 6px;background-clip:content-box;background-repeat:repeat;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.drag-handle:hover{filter:brightness(.8)}
+.item.drag-placeholder{opacity:.45;border:1px dashed var(--red);background:transparent}
+.drag-ghost{position:fixed;z-index:60;margin:0;pointer-events:none;box-shadow:0 16px 34px rgba(30,20,10,.28);transform:rotate(1.2deg) scale(1.02);opacity:.97}
+.drag-active,.drag-active *{cursor:grabbing!important;user-select:none;-webkit-user-select:none}
+.drag-active .items{min-height:52px}
 .text-btn{border:0;background:none;padding:0;color:#9a6e30;font-size:11px;text-decoration:underline;text-underline-offset:3px}
 .tag{display:inline-block;background:#f3ead8;color:#84672e;font-size:10px;padding:2px 7px;margin:0 0 5px 5px}
 .tag.red{background:#fbe7e2;color:#b73a26}
@@ -150,6 +157,7 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
     <div class="sync-bar"><span id="syncStatus">☁ 尚未開啟同步（資料只存在這台裝置）</span><button class="outline-btn" onclick="setupSync()">設定同步代碼</button><button class="outline-btn" onclick="copyInvite()">複製邀請連結</button></div>
     <div class="day-tabs" id="dayTabs"></div>
     <div class="day-banner"><div><h3 id="dayTitle"></h3><p id="dayTheme"></p></div><div class="progress-wrap"><div class="progress-label"><span>今日完成進度</span><span id="progressText">0%</span></div><div class="progress"><span id="progressBar"></span></div></div></div>
+    <div class="muted drag-hint">按住景點左側的 ⋮⋮ 圓點，即可拖曳調整順序，也能拖到其他時段。</div>
     <div class="day-content" id="dayContent"></div>
     <div class="toolbar">
       <button class="outline-btn" onclick="openAddModal()">＋ 新增景點</button>
@@ -262,7 +270,7 @@ function renderDay(){
  const d=state.days[currentDay];document.getElementById("dayTitle").textContent=`DAY 0${currentDay+1}　${d.date}（${d.dow}）`;document.getElementById("dayTheme").textContent=d.theme+(d.flight?"　｜　"+d.flight:"");
  const all=d.periods.flatMap(p=>p.items),done=all.filter(x=>x.done).length,pct=all.length?Math.round(done/all.length*100):0;
  document.getElementById("progressText").textContent=`${pct}%　(${done}/${all.length})`;document.getElementById("progressBar").style.width=pct+"%";
- document.getElementById("dayContent").innerHTML=d.periods.map((p,pi)=>`<div class="period"><div class="period-label">${esc(p.name)}</div><div class="items">${p.items.map(item=>`<article class="item ${item.done?"done":""}"><input class="check" type="checkbox" aria-label="完成 ${esc(item.title)}" ${item.done?"checked":""} onchange="toggleItem('${item.id}',this.checked)"><div class="item-body"><div class="item-title">${esc(item.title)}${/預約/.test(item.note)?" <span class='tag red'>需預約</span>":""}</div><div class="item-note">${esc(item.note)}</div><div class="item-actions"><button class="text-btn" onclick="openMap('${encodeURIComponent(item.title)}')">Google Maps ↗</button><button class="text-btn" aria-label="往前移" onclick="moveItem('${item.id}',-1)">↑ 上移</button><button class="text-btn" aria-label="往後移" onclick="moveItem('${item.id}',1)">↓ 下移</button><button class="text-btn" onclick="editItem('${item.id}')">編輯</button><button class="text-btn" onclick="deleteItem('${item.id}')">刪除</button></div></div></article>`).join("")}</div></div>`).join("");
+ document.getElementById("dayContent").innerHTML=d.periods.map((p,pi)=>`<div class="period"><div class="period-label">${esc(p.name)}</div><div class="items">${p.items.map(item=>`<article class="item ${item.done?"done":""}" data-id="${item.id}"><span class="drag-handle" title="按住拖曳排序" aria-label="拖曳排序"></span><input class="check" type="checkbox" aria-label="完成 ${esc(item.title)}" ${item.done?"checked":""} onchange="toggleItem('${item.id}',this.checked)"><div class="item-body"><div class="item-title">${esc(item.title)}${/預約/.test(item.note)?" <span class='tag red'>需預約</span>":""}</div><div class="item-note">${esc(item.note)}</div><div class="item-actions"><button class="text-btn" onclick="openMap('${encodeURIComponent(item.title)}')">Google Maps ↗</button><button class="text-btn" onclick="editItem('${item.id}')">編輯</button><button class="text-btn" onclick="deleteItem('${item.id}')">刪除</button></div></div></article>`).join("")}</div></div>`).join("");
  renderTabs()
 }
 function selectDay(i){currentDay=i;renderDay()}
@@ -309,6 +317,83 @@ document.getElementById("modalBackdrop").addEventListener("click",e=>{if(e.targe
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAddModal()});
 renderAll();
 
+let dragActive=false;
+(function(){
+  const host=document.getElementById("dayContent");
+  let el=null,ghost=null,offX=0,offY=0,lastX=0,lastY=0,raf=0,before="";
+  const sig=()=>[...host.querySelectorAll(".items")].map(c=>[...c.querySelectorAll(".item")].map(a=>a.dataset.id).join(",")).join("|");
+  const stop=e=>{if(dragActive&&e.cancelable)e.preventDefault()};
+  function moveGhost(){ghost.style.left=(lastX-offX)+"px";ghost.style.top=(lastY-offY)+"px"}
+  function placeAt(x,y){
+    const t=document.elementFromPoint(x,y);if(!t||!host.contains(t))return;
+    const tgt=t.closest(".item");
+    if(tgt&&tgt!==el){
+      const r=tgt.getBoundingClientRect(),cont=tgt.parentElement;
+      const cols=getComputedStyle(cont).gridTemplateColumns.split(" ").length;
+      const isBefore=cols>1?(x<r.left+r.width/2):(y<r.top+r.height/2);
+      const ref=isBefore?tgt:tgt.nextSibling;
+      if(ref!==el)cont.insertBefore(el,ref);
+      return;
+    }
+    if(tgt===el)return;
+    const per=t.closest(".period");if(!per)return;
+    const cont=per.querySelector(".items");
+    if(!cont.querySelector(".item:not(.drag-placeholder)")||t.closest(".period-label"))cont.appendChild(el);
+  }
+  function loop(){
+    if(!dragActive)return;
+    const m=90,h=window.innerHeight;
+    if(lastY<m)window.scrollBy({top:-Math.ceil((m-lastY)/5),behavior:"instant"});
+    else if(lastY>h-m)window.scrollBy({top:Math.ceil((lastY-(h-m))/5),behavior:"instant"});
+    placeAt(lastX,lastY);
+    raf=requestAnimationFrame(loop);
+  }
+  function onMove(e){if(!dragActive)return;e.preventDefault();lastX=e.clientX;lastY=e.clientY;moveGhost();placeAt(lastX,lastY)}
+  function cleanup(){
+    cancelAnimationFrame(raf);
+    window.removeEventListener("pointermove",onMove);
+    window.removeEventListener("pointerup",onUp);
+    window.removeEventListener("pointercancel",onCancel);
+    window.removeEventListener("touchmove",stop);
+    if(ghost)ghost.remove();ghost=null;
+    host.classList.remove("drag-active");
+    dragActive=false;
+  }
+  function onCancel(){cleanup();el=null;renderDay()}
+  function onUp(){
+    const changed=sig()!==before;
+    const dropped=el;cleanup();el=null;
+    if(!changed||!dropped){renderDay();return}
+    const d=state.days[currentDay],map={};
+    d.periods.forEach(p=>p.items.forEach(i=>{map[i.id]=i}));
+    const conts=[...host.querySelectorAll(".items")];
+    const np=d.periods.map((p,i)=>({...p,items:[...conts[i].querySelectorAll(".item")].map(a=>map[a.dataset.id]).filter(Boolean)}));
+    const total=Object.keys(map).length,now=np.reduce((n,p)=>n+p.items.length,0);
+    if(total!==now){renderDay();return}
+    d.periods=np.filter(p=>p.items.length>0);
+    saveState();renderDay();
+  }
+  host.addEventListener("pointerdown",e=>{
+    const h=e.target.closest(".drag-handle");
+    if(!h||dragActive||(e.pointerType==="mouse"&&e.button!==0))return;
+    e.preventDefault();
+    el=h.closest(".item");
+    const r=el.getBoundingClientRect();
+    offX=e.clientX-r.left;offY=e.clientY-r.top;lastX=e.clientX;lastY=e.clientY;
+    before=sig();
+    ghost=el.cloneNode(true);ghost.classList.add("drag-ghost");ghost.style.width=r.width+"px";
+    document.body.appendChild(ghost);moveGhost();
+    el.classList.add("drag-placeholder");
+    host.classList.add("drag-active");
+    dragActive=true;
+    window.addEventListener("pointermove",onMove,{passive:false});
+    window.addEventListener("pointerup",onUp);
+    window.addEventListener("pointercancel",onCancel);
+    window.addEventListener("touchmove",stop,{passive:false});
+    loop();
+  });
+})();
+
 /* ===== 雲端同步（Firebase Firestore）===== */
 const firebaseConfig={
   apiKey:"AIzaSyD8xywUEfPIHpiEpwqlV6PwbF1bMi06pMk",
@@ -347,12 +432,16 @@ function startSync(code){
     try{
       const data=JSON.parse(snap.data().data);
       if(!data.days||!data.shopping||!data.expenses)throw new Error("bad data");
-      if(JSON.stringify(data)!==JSON.stringify(state)){
-        state=data;
-        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}
-        if(currentDay>=state.days.length)currentDay=0;
-        renderAll();
-      }
+      const apply=()=>{
+        if(dragActive){setTimeout(apply,400);return}
+        if(JSON.stringify(data)!==JSON.stringify(state)){
+          state=data;
+          try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}
+          if(currentDay>=state.days.length)currentDay=0;
+          renderAll();
+        }
+      };
+      apply();
       setSyncStatus("☁ 已同步 · "+nowText()+"　（代碼 "+code+"）");
     }catch(e){setSyncStatus("☁ 雲端資料格式有誤")}
   },syncError);
