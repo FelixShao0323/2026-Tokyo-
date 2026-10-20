@@ -81,8 +81,9 @@ main{max-width:1180px;margin:auto;padding:0 clamp(16px,4vw,48px) 80px}
 .route-fields label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--brown)}
 .route-fields input,.route-fields select{width:auto;max-width:none;font-size:16px;padding:6px 6px}
 .route-fields{gap:8px}
-.route-fields input[type=time]{width:100px;padding:6px 4px}
+.route-fields input.tm{width:70px;text-align:center;padding:6px 4px;letter-spacing:.02em}
 .route-fields select{min-width:100px}
+.rt-main{min-width:0}
 .route-head{font-size:13px;color:var(--brown);margin-bottom:14px}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .chip{border:1px solid var(--line);background:transparent;padding:8px 14px;font-size:13px;color:var(--brown)}
@@ -95,6 +96,22 @@ main{max-width:1180px;margin:auto;padding:0 clamp(16px,4vw,48px) 80px}
 .form-row.wrap{flex-wrap:wrap}
 .form-row.wrap input[type=text],.form-row.wrap select{flex:1 1 140px;max-width:none;width:auto}
 .form-row.wrap .wide{flex:1 1 100%}
+@media(min-width:701px){
+ #dayContent .items,#routeList .items,#packList .items{grid-template-columns:1fr;gap:0;border-top:1px solid var(--line)}
+ #dayContent .item,#routeList .item,#packList .item{border:0;border-bottom:1px solid var(--line);background:transparent;align-items:center;padding:12px 8px}
+ #dayContent .item:hover,#routeList .item:hover,#packList .item:hover{background:#fffefa}
+ #dayContent .item.drag-placeholder,#routeList .item.drag-placeholder,#packList .item.drag-placeholder{border:1px dashed var(--red)}
+ #dayContent .check,#packList .check,.step{margin:0}
+ #dayContent .item-body,#packList .item-body{display:flex;align-items:baseline;gap:4px 18px;flex-wrap:wrap}
+ #dayContent .item-note{flex:1 1 160px;margin:0}
+ #dayContent .item-actions,#packList .item-actions{margin:0 0 0 auto;opacity:.5;transition:opacity .15s}
+ #dayContent .item:hover .item-actions,#packList .item:hover .item-actions,#routeList .item:hover .item-actions{opacity:1}
+ #routeList .item-body{display:flex;align-items:center;gap:8px 24px;flex-wrap:wrap}
+ .rt-main{flex:1 1 240px}
+ #routeList .route-fields{margin:0}
+ #routeList .item-actions{margin:0;flex-direction:column;gap:4px;opacity:.5;transition:opacity .15s}
+ #placeList .items{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 .text-btn{border:0;background:none;padding:0;color:#9a6e30;font-size:11px;text-decoration:underline;text-underline-offset:3px}
 .tag{display:inline-block;background:#f3ead8;color:#84672e;font-size:10px;padding:2px 7px;margin:0 0 5px 5px}
 .tag.red{background:#fbe7e2;color:#b73a26}
@@ -190,7 +207,7 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
       <button class="outline-btn" onclick="document.getElementById('importFile').click()">匯入備份</button>
       <input id="importFile" type="file" accept="application/json" hidden onchange="importData(event)">
       <button class="outline-btn" onclick="resetChecks()">重設完成勾選</button>
-      <button class="outline-btn" onclick="resetItinerary()">還原預設行程</button>
+      <button class="outline-btn" onclick="resetItinerary()">套用最新版預設行程</button>
     </div>
   </section>
 
@@ -287,32 +304,40 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
 <script>
 const initialDays = [
  {date:"11.26",dow:"THU",theme:"抵達東京・麻布台與六本木藝文散策",flight:"捷星 GK012｜TPE → NRT｜02:00–06:55",periods:[
-  {name:"上午",items:[["抵達成田機場","捷星 GK012 抵達"],["Skyliner 前往東京／赤坂","交通方式依實際住宿位置確認"]]},
+  {name:"上午",items:[["抵達成田機場","捷星 GK012 抵達"],["Skyliner 前往東京／赤坂","Skyliner → 東京／赤坂"]]},
   {name:"午餐",items:[["九州じゃんがら 赤坂店","赤坂午餐"]]},
-  {name:"下午",items:[["麻布台之丘 33–34F","麻布台散策"],["Pace Gallery","藝廊"],["21_21 DESIGN SIGHT","六本木藝文散策"],["Ota Gallery","藝廊"],["國立新美術館","美術館"],["高輪 GATEWAY CITY","PDF 原始行程列於此日"]]},
-  {name:"晚上",items:[["六本木聖誕點燈","夜間散策"],["けやき坂イルミネーション","聖誕燈飾"],["毛利庭園","夜間散策"],["森美術館","展覽資訊請出發前確認"],["《森万里子：燦燦》","展覽名稱依原始行程"],["和牛すき焼 そしそじ 麻布十番店","晚餐；店名依 PDF 文字整理，請再核對"]]}
+  {name:"下午",items:[["麻布台之丘 33–34F","麻布台散策"],["Pace Gallery","麻布台散策"],["21_21 DESIGN SIGHT","六本木藝文散策"],["Ota Gallery","六本木藝文散策"],["國立新美術館","六本木藝文散策"],["けやき坂イルミネーション","聖誕點燈"],["毛利庭園","聖誕點燈"],["森美術館","《森万里子：燦燦》"]]},
+  {name:"晚上",items:[["和牛すき焼 そしじ 麻布十番店","麻布台晚餐"]]}
  ]},
  {date:"11.27",dow:"FRI",theme:"新宿・澀谷與城市文化散策",flight:"",periods:[
-  {name:"上午",items:[["彈性時段","原始 PDF 未安排固定景點"]]},
-  {name:"下午",items:[["新宿御苑","新宿"],["澀谷","區域散策"],["Bic Camera","購物"],["SHIBUYA SKY","需要預約"],["AMAM DACOTAN","麵包店"],["Tea Bar 聴景居","抹茶店"]]},
-  {name:"晚上",items:[["渋谷森本 うなぎ・焼き鳥","晚餐"],["牛たんの檸檬","晚餐／店址請確認當日分店"]]}
+  {name:"上午",items:[["新宿御苑","新宿"]]},
+  {name:"下午",items:[["Bic Camera","澀谷｜購物"],["SHIBUYA SKY","澀谷｜需要預約（要預訂！）"],["AMAM DACOTAN","澀谷｜麵包店"],["Tea Bar 聴景居","澀谷｜抹茶店"]]},
+  {name:"晚上",items:[["渋谷森本 うなぎ・焼き鳥","澀谷晚餐"]]}
  ]},
- {date:"11.28",dow:"SAT",theme:"築地・銀座・原宿與淺草",flight:"",periods:[
-  {name:"上午",items:[["築地市場","築地散策"],["高輪 GATEWAY CITY","原始 PDF 上午行程"]]},
-  {name:"銀座散策",items:[["Bic Camera","購物"],["GINZA SIX","購物"],["UNIQLO","購物"],["資生堂美術館","美術／文化"]]},
-  {name:"午餐",items:[["五代目 花山烏冬","烏龍麵店；銀座午餐"]]},
-  {name:"下午",items:[["明治神宮","原宿"],["＠cosme TOKYO","美妝店"],["neel 神宮前","咖啡廳"],["MASONO / wabi","抹茶店；名稱依 PDF"],["SHAKA SHAKA MATCHA","抹茶店"],["小網神社","神社"],["OZEKI Tokyo Gallery","藝廊"],["hibi 10MINUTES","香氛店"],["淺草寺","淺草"],["龜十銅鑼燒","甜點"],["淺草炸肉餅","小吃"],["阿美橫町","藥妝／購物"]]},
-  {name:"晚上",items:[["本とさや 東京","晚餐"],["牛たんの檸檬 浅草店","晚餐；分店資訊請確認"]]}
+ {date:"11.28",dow:"SAT",theme:"築地・銀座與淺草散策",flight:"",periods:[
+  {name:"上午",items:[["築地市場","築地"],["高輪 GATEWAY CITY","上午行程"]]},
+  {name:"銀座散策",items:[["Bic Camera","銀座｜購物"],["GINZA SIX","銀座｜購物"],["UNIQLO","銀座｜購物"],["資生堂美術館","銀座｜美術館"]]},
+  {name:"午餐",items:[["五代目 花山烏冬","銀座午餐｜烏龍麵店"]]},
+  {name:"下午",items:[["淺草寺","淺草"],["龜十銅鑼燒","淺草｜甜點"],["淺草炸肉餅","淺草｜小吃"],["hibi 10MINUTES","香氛店"],["阿美橫町","藥妝"]]},
+  {name:"晚上",items:[["本とさや 東京","淺草晚餐"],["牛たんの檸檬 浅草店","淺草晚餐"]]}
  ]},
- {date:"11.29",dow:"SUN",theme:"皇居・神田神社・秋葉原與新宿",flight:"",periods:[
-  {name:"上午",items:[["皇居","原始 PDF 標示皇居／江戶城"],["江戶城","皇居周邊"],["神田神社","神社"]]},
-  {name:"下午",items:[["BIC CAMERA 秋葉原店","秋葉原購物"],["阿美橫町","藥妝"],["神樂坂","散策"],["Abicajo Butter","甜點店；名稱依 PDF"],["日蓮宗 法輪寺","寺院"]]},
-  {name:"晚上",items:[["回赤坂拿行李","前往機場前"],["前往成田機場","請預留交通與報到時間"],["成田山表參道","PDF 列於此日；請確認是否來得及"],["赤坂晚餐","原始 PDF 有標示，但與前往機場行程可能衝突，待確認"]]}
+ {date:"11.29",dow:"SUN",theme:"皇居・神田神社與原宿",flight:"",periods:[
+  {name:"上午",items:[["皇居・江戶城","皇居"],["神田神社","神社"]]},
+  {name:"下午",items:[["明治神宮","原宿"],["＠cosme TOKYO","原宿｜美妝店"],["neel 神宮前","原宿｜咖啡廳"],["MASONO / wabi","原宿｜抹茶店"],["SHAKA SHAKA MATCHA","原宿｜抹茶店"]]},
+  {name:"晚上",items:[["赤坂晚餐","餐廳可再補上"]]}
  ]},
- {date:"11.30",dow:"MON",theme:"返程・把東京的記憶帶回家",flight:"酷航 TR 875｜NRT → TPE｜19:45–22:55",periods:[
-  {name:"返程",items:[["東京成田機場 NRT","酷航 TR 875｜19:45 起飛"],["抵達台灣桃園機場 TPE","22:55 抵達"]]}
+ {date:"11.30",dow:"MON",theme:"新宿・上野散策與返程",flight:"酷航 TR 875｜NRT → TPE｜19:45–22:55",periods:[
+  {name:"下午",items:[["神樂坂","新宿"],["Abicajo Butter","新宿｜甜點店"],["日蓮宗 法輪寺","上野"],["小網神社","上野｜招財神社"],["OZEKI Tokyo Gallery","上野｜燈飾店"]]},
+  {name:"返程",items:[["回赤坂拿行李","前往機場前"],["前往成田機場","請預留交通與報到時間"],["東京成田機場 NRT","酷航 TR 875｜19:45 起飛"],["抵達台灣桃園機場 TPE","22:55 抵達"]]}
  ]}
 ];
+const MAP_LINKS={
+ "和牛すき焼 そしじ 麻布十番店":"https://www.google.com/maps/place/Sukiyaki+restaurant/@35.6574678,139.7298828,17z/data=!3m1!4b1!4m6!3m5!1s0x60188b59dce92533:0x4edcca0a63a9615c!8m2!3d35.6574635!4d139.7324577!16s%2Fg%2F11ylmb29r8",
+ "渋谷森本 うなぎ・焼き鳥":"https://www.google.com/maps/place/Shibuya+Morimoto/@35.6585895,139.6960811,17z/data=!3m2!4b1!5s0x60188b562c600ac3:0xb1046027eff2b4cd!4m6!3m5!1s0x60188b562c66b20d:0xbf11df5152df251c!8m2!3d35.6585852!4d139.698656!16s%2Fg%2F1vvdv5__",
+ "本とさや 東京":"https://www.google.com/maps/place/Hontosaya/@35.7082821,139.7821186,15.78z/data=!3m1!5s0x60188ebfe7a67b51:0x7a446db6fde97a19!4m10!1m3!11m2!2sDsiguLSz5j9NQ3Cca3YKeldQVZgdPQ!3e3!3m5!1s0x60188ebfe7001e83:0x48b073d419277394!8m2!3d35.7143719!4d139.7920081!16s%2Fg%2F1trc4z4j",
+ "牛たんの檸檬 浅草店":"https://www.google.com/maps/place/Gyutan+no+Lemon+Asakusa+Branch/@35.7146548,139.7907079,17z/data=!3m1!4b1!4m6!3m5!1s0x60188f002ad0ce1b:0x39927de3d98ec013!8m2!3d35.7146505!4d139.7932828!16s%2Fg%2F11wjl5h8d9"
+};
+const INFO_LINKS={"國立新美術館":"https://www.nact.jp/exhibition_special/2026/louvre2026/"};
 const STORAGE_KEY="tokyo-sansaku-v1";
 let state = loadState();
 let currentDay = 0;
@@ -326,18 +351,19 @@ function renderDay(){
  const d=state.days[currentDay];document.getElementById("dayTitle").textContent=`DAY 0${currentDay+1}　${d.date}（${d.dow}）`;document.getElementById("dayTheme").textContent=d.theme+(d.flight?"　｜　"+d.flight:"");
  const all=d.periods.flatMap(p=>p.items),done=all.filter(x=>x.done).length,pct=all.length?Math.round(done/all.length*100):0;
  document.getElementById("progressText").textContent=`${pct}%　(${done}/${all.length})`;document.getElementById("progressBar").style.width=pct+"%";
- document.getElementById("dayContent").innerHTML=d.periods.map((p,pi)=>`<div class="period"><div class="period-label">${esc(p.name)}</div><div class="items">${p.items.map(item=>`<article class="item ${item.done?"done":""}" data-id="${item.id}"><span class="drag-handle" title="按住拖曳排序" aria-label="拖曳排序"></span><input class="check" type="checkbox" aria-label="完成 ${esc(item.title)}" ${item.done?"checked":""} onchange="toggleItem('${item.id}',this.checked)"><div class="item-body"><div class="item-title">${esc(item.title)}${/預約/.test(item.note)?" <span class='tag red'>需預約</span>":""}</div><div class="item-note">${esc(item.note)}</div><div class="item-actions"><button class="text-btn" onclick="openMap('${encodeURIComponent(item.title)}')">Google Maps ↗</button><button class="text-btn" onclick="editItem('${item.id}')">編輯</button><button class="text-btn" onclick="deleteItem('${item.id}')">刪除</button></div></div></article>`).join("")}</div></div>`).join("");
+ document.getElementById("dayContent").innerHTML=d.periods.map((p,pi)=>`<div class="period"><div class="period-label">${esc(p.name)}</div><div class="items">${p.items.map(item=>`<article class="item ${item.done?"done":""}" data-id="${item.id}"><span class="drag-handle" title="按住拖曳排序" aria-label="拖曳排序"></span><input class="check" type="checkbox" aria-label="完成 ${esc(item.title)}" ${item.done?"checked":""} onchange="toggleItem('${item.id}',this.checked)"><div class="item-body"><div class="item-title">${esc(item.title)}${/預約/.test(item.note)?" <span class='tag red'>需預約</span>":""}</div><div class="item-note">${esc(item.note)}</div><div class="item-actions"><button class="text-btn" onclick="openMapFor('${encodeURIComponent(item.title)}')">Google Maps ↗</button>${INFO_LINKS[item.title]?`<button class="text-btn" onclick="window.open(INFO_LINKS[decodeURIComponent('${encodeURIComponent(item.title)}')],'_blank','noopener,noreferrer')">展覽資訊 ↗</button>`:""}<button class="text-btn" onclick="editItem('${item.id}')">編輯</button><button class="text-btn" onclick="deleteItem('${item.id}')">刪除</button></div></div></article>`).join("")}</div></div>`).join("");
  renderTabs()
 }
 function selectDay(i){currentDay=i;renderDay()}
 function findItem(id){for(let di=0;di<state.days.length;di++)for(let pi=0;pi<state.days[di].periods.length;pi++){const item=state.days[di].periods[pi].items.find(x=>x.id===id);if(item)return {item,di,pi}}return null}
 function toggleItem(id,done){const found=findItem(id);if(found)found.item.done=done;saveState();renderDay()}
+function openMapFor(q){const t=decodeURIComponent(q);window.open(MAP_LINKS[t]||"https://www.google.com/maps/search/?api=1&query="+q,"_blank","noopener,noreferrer")}
 function openMap(q){window.open("https://www.google.com/maps/search/?api=1&query="+q,"_blank","noopener,noreferrer")}
 function openAddModal(){document.getElementById("newTitle").value="";document.getElementById("newNote").value="";document.getElementById("newDay").innerHTML=state.days.map((d,i)=>`<option value="${i}" ${i===currentDay?"selected":""}>Day ${i+1}｜${d.date}</option>`).join("");document.getElementById("modalBackdrop").classList.add("show");document.getElementById("newTitle").focus()}
 function closeAddModal(){document.getElementById("modalBackdrop").classList.remove("show")}
 function addItem(){const title=document.getElementById("newTitle").value.trim();if(!title){alert("請輸入景點名稱。");return}const di=Number(document.getElementById("newDay").value),periodName=document.getElementById("newPeriod").value,note=document.getElementById("newNote").value.trim();let p=state.days[di].periods.find(p=>p.name===periodName);if(!p){p={name:periodName,items:[]};const order=["上午","午餐","下午","晚餐","晚上","備選景點"],rk=n=>order.indexOf(n),mine=rk(periodName),at=state.days[di].periods.findIndex(q=>rk(q.name)>mine);if(at===-1)state.days[di].periods.push(p);else state.days[di].periods.splice(at,0,p)}p.items.push({id:"custom-"+Date.now(),title,note,done:false});currentDay=di;saveState();closeAddModal();renderDay()}
 function editItem(id){const f=findItem(id);if(!f)return;const title=prompt("修改景點名稱：",f.item.title);if(title===null)return;if(!title.trim()){alert("名稱不能空白。");return}const note=prompt("修改備註：",f.item.note||"");if(note===null)return;f.item.title=title.trim();f.item.note=note.trim();saveState();renderDay()}
-function deleteItem(id){const f=findItem(id);if(!f)return;if(!confirm(`確定刪除「${f.item.title}」？`))return;state.days[f.di].periods[f.pi].items=state.days[f.di].periods[f.pi].items.filter(x=>x.id!==id);saveState();renderDay()}
+function deleteItem(id){const f=findItem(id);if(!f)return;if(!confirm(`確定刪除「${f.item.title}」？`))return;state.days[f.di].periods[f.pi].items=state.days[f.di].periods[f.pi].items.filter(x=>x.id!==id);state.days[f.di].periods=state.days[f.di].periods.filter(q=>q.items.length>0);saveState();renderDay()}
 function moveItem(id,dir){
   const f=findItem(id);if(!f)return;
   const periods=state.days[f.di].periods,items=periods[f.pi].items,idx=items.findIndex(x=>x.id===id);
@@ -376,13 +402,12 @@ const MODES=["步行","地鐵","JR","巴士","計程車","Skyliner","飛機","�
 const PCATS=["景點","餐廳","逛街","素食","點心"];
 const BAGS={carry:"隨身行李",suitcase:"行李箱"};
 const PLACE_SEED=`麻布台之丘 33–34F|景點|麻布台|散策
-Pace Gallery|景點|六本木|藝廊
+Pace Gallery|景點|麻布台|藝廊
 21_21 DESIGN SIGHT|景點|六本木|美術館
 Ota Gallery|景點|六本木|藝廊
 國立新美術館|景點|六本木|美術館
 森美術館|景點|六本木|美術館
 毛利庭園|景點|六本木|庭園
-六本木聖誕點燈|景點|六本木|聖誕燈飾
 けやき坂イルミネーション|景點|六本木|聖誕燈飾
 高輪 GATEWAY CITY|景點|高輪|散策
 新宿御苑|景點|新宿|公園
@@ -390,28 +415,25 @@ SHIBUYA SKY|景點|澀谷|展望台（需預約）
 築地市場|景點|築地|市場
 資生堂美術館|景點|銀座|美術館
 明治神宮|景點|原宿|神社
-小網神社|景點|日本橋|神社
-OZEKI Tokyo Gallery|景點||藝廊
+小網神社|景點|日本橋|神社（招財）
+OZEKI Tokyo Gallery|景點|上野|燈飾店
 淺草寺|景點|淺草|寺院
-皇居|景點|皇居|歷史
+皇居・江戶城|景點|皇居|歷史
 神田神社|景點|神田|神社
 神樂坂|景點|神樂坂|散策
-日蓮宗 法輪寺|景點||寺院
-成田山表參道|景點|成田|老街
+日蓮宗 法輪寺|景點|上野|寺院
 九州じゃんがら 赤坂店|餐廳|赤坂|拉麵
-和牛すき焼 そしそじ 麻布十番店|餐廳|麻布十番|壽喜燒
+和牛すき焼 そしじ 麻布十番店|餐廳|麻布十番|壽喜燒
 渋谷森本 うなぎ・焼き鳥|餐廳|澀谷|鰻魚／串燒
-牛たんの檸檬|餐廳|澀谷|牛舌
 牛たんの檸檬 浅草店|餐廳|淺草|牛舌
 五代目 花山烏冬|餐廳|銀座|烏龍麵
-本とさや 東京|餐廳||晚餐
+本とさや 東京|餐廳|淺草|晚餐
 Bic Camera（澀谷）|逛街|澀谷|家電／藥妝
 Bic Camera（銀座）|逛街|銀座|家電／藥妝
 GINZA SIX|逛街|銀座|百貨
 UNIQLO|逛街|銀座|服飾
 ＠cosme TOKYO|逛街|原宿|美妝
-hibi 10MINUTES|逛街|原宿|香氛
-BIC CAMERA 秋葉原店|逛街|秋葉原|家電
+hibi 10MINUTES|逛街|淺草|香氛
 阿美橫町|逛街|上野|藥妝／購物
 AMAM DACOTAN|點心|澀谷|麵包
 Tea Bar 聴景居|點心|澀谷|抹茶
@@ -456,6 +478,7 @@ function ensureExtras(st){
   if(!Array.isArray(st.route)){st.route=seedRoute(st);ch=true}
   if(!Array.isArray(st.places)){st.places=seedPlaces();ch=true}
   if(!Array.isArray(st.packing)){st.packing=seedPacking();ch=true}
+  st.days.forEach(d=>{const n=d.periods.filter(q=>q.items.length>0);if(n.length!==d.periods.length){d.periods=n;ch=true}});
   return ch;
 }
 ensureExtras(state);
@@ -478,7 +501,19 @@ function curRoute(){return state.route[routeDay]||(state.route[routeDay]=[])}
 function setRouteDay(i){routeDay=i;renderRoute()}
 function routeRow(r,i){
   const opts='<option value="">選擇</option>'+MODES.map(m=>`<option ${r.mode===m?"selected":""}>${m}</option>`).join("");
-  return `<article class="item" data-id="${r.id}"><span class="drag-handle" title="按住拖曳排序"></span><span class="step">${i+1}</span><div class="item-body"><div class="item-title">${esc(r.title)}</div>${r.note?`<div class="item-note">${esc(r.note)}</div>`:""}<div class="route-fields"><label>出發<input type="time" value="${esc(r.dep)}" onchange="setRoute('${r.id}','dep',this.value)"></label><label>抵達<input type="time" value="${esc(r.arr)}" onchange="setRoute('${r.id}','arr',this.value)"></label><label>交通工具<select onchange="setRoute('${r.id}','mode',this.value)">${opts}</select></label></div><div class="item-actions"><button class="text-btn" onclick="routeMap('${r.id}')">路線 ↗</button><button class="text-btn" onclick="editRoute('${r.id}')">編輯</button><button class="text-btn" onclick="deleteRoute('${r.id}')">刪除</button></div></div></article>`;
+  const tm=(k,l)=>`<label>${l}<input class="tm" type="text" inputmode="numeric" maxlength="5" placeholder="00:00" value="${esc(r[k])}" onchange="setTime('${r.id}','${k}',this)"></label>`;
+  return `<article class="item" data-id="${r.id}"><span class="drag-handle" title="按住拖曳排序"></span><span class="step">${i+1}</span><div class="item-body"><div class="rt-main"><div class="item-title">${esc(r.title)}</div>${r.note?`<div class="item-note">${esc(r.note)}</div>`:""}</div><div class="route-fields">${tm("dep","出發")}${tm("arr","抵達")}<label>交通工具<select onchange="setRoute('${r.id}','mode',this.value)">${opts}</select></label></div><div class="item-actions"><button class="text-btn" onclick="routeMap('${r.id}')">路線 ↗</button><button class="text-btn" onclick="editRoute('${r.id}')">編輯</button><button class="text-btn" onclick="deleteRoute('${r.id}')">刪除</button></div></div></article>`;
+}
+function normTime(v){
+  const d=String(v||"").replace(/\D/g,"");if(!d)return"";
+  let h,m;if(d.length<=2){h=d;m="0"}else if(d.length===3){h=d[0];m=d.slice(1)}else{h=d.slice(0,2);m=d.slice(2,4)}
+  h=+h;m=+m;if(h>23||m>59)return null;
+  return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+}
+function setTime(id,k,el){
+  const f=findRoute(id),v=normTime(el.value);
+  if(v===null){alert("請輸入 24 小時制時間，例如 0930 或 09:30。");el.value=f?f.r[k]||"":"";return}
+  el.value=v;setRoute(id,k,v);
 }
 function renderRoute(){
   if(routeDay>=state.days.length)routeDay=0;
@@ -517,7 +552,7 @@ let placeFilter="全部",editingPlace=null;
 function setPlaceFilter(c){placeFilter=c;renderPlaces()}
 function placeCard(p){
   if(editingPlace===p.id)return `<article class="place"><input type="text" id="pe-name" value="${esc(p.name)}" placeholder="名稱"><select id="pe-cat">${PCATS.map(c=>`<option ${c===p.cat?"selected":""}>${c}</option>`).join("")}</select><input type="text" id="pe-area" value="${esc(p.area)}" placeholder="區域"><input type="text" id="pe-tag" value="${esc(p.tag)}" placeholder="種類"><div class="item-actions"><button class="text-btn" onclick="savePlace('${p.id}')">儲存</button><button class="text-btn" onclick="editingPlace=null;renderPlaces()">取消</button></div></article>`;
-  return `<article class="place"><div class="place-name">${esc(p.name)}</div><div>${p.area?`<span class="ptag">${esc(p.area)}</span>`:""}${p.tag?`<span class="ptag type">${esc(p.tag)}</span>`:""}</div><div class="item-actions"><button class="text-btn" onclick="openMap('${encodeURIComponent(p.name)}')">Google Maps ↗</button><button class="text-btn" onclick="editingPlace='${p.id}';renderPlaces()">編輯</button><button class="text-btn" onclick="deletePlace('${p.id}')">刪除</button></div></article>`;
+  return `<article class="place"><div class="place-name">${esc(p.name)}</div><div>${p.area?`<span class="ptag">${esc(p.area)}</span>`:""}${p.tag?`<span class="ptag type">${esc(p.tag)}</span>`:""}</div><div class="item-actions"><button class="text-btn" onclick="openMapFor('${encodeURIComponent(p.name)}')">Google Maps ↗</button><button class="text-btn" onclick="editingPlace='${p.id}';renderPlaces()">編輯</button><button class="text-btn" onclick="deletePlace('${p.id}')">刪除</button></div></article>`;
 }
 function renderPlaces(){
   const cnt=c=>c==="全部"?state.places.length:state.places.filter(p=>p.cat===c).length;
@@ -736,8 +771,9 @@ function copyInvite(){
   }else{prompt("請長按複製這個連結：",link)}
 }
 function resetItinerary(){
-  if(!confirm("確定還原為預設五日行程？\n所有景點的勾選與你新增、編輯過的景點會被取代；購物清單、支出、備忘錄不受影響。"))return;
-  state.days=freshState().days;currentDay=0;saveState();renderDay();
+  if(!confirm("確定套用最新版預設內容？\n行程清單、每日行程、收藏景點會換成最新版（勾選與你新增、編輯過的內容會被取代）；購物清單、支出、預算、備忘錄、行李打包不受影響。\n兩個人同步時，只要一個人按就好。"))return;
+  state.days=freshState().days;state.route=seedRoute(state);state.places=seedPlaces();
+  currentDay=0;routeDay=0;editingPlace=null;placeFilter="全部";saveState();renderAll();
 }
 if(initFirebase()){
   const urlCode=new URLSearchParams(location.search).get("code");
