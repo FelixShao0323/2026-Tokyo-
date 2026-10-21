@@ -65,7 +65,7 @@ main{max-width:1180px;margin:auto;padding:0 clamp(16px,4vw,48px) 80px}
 .item-note{font-size:11px;color:var(--brown);margin-top:3px}
 .item-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
 .drag-hint{margin:0 0 6px;font-size:12px}
-.drag-handle{flex:0 0 12px;width:12px;height:26px;padding:8px 6px;margin:-8px -4px -8px -8px;box-sizing:content-box;background:radial-gradient(circle,#b9ad9b 1.3px,transparent 1.6px) 0 0/6px 6px;background-clip:content-box;background-repeat:repeat;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.drag-handle{flex:0 0 18px;width:18px;height:8px;padding:12px 8px;margin:-12px -4px -12px -8px;box-sizing:content-box;background:linear-gradient(#a89a85,#a89a85) top/100% 2px no-repeat,linear-gradient(#a89a85,#a89a85) bottom/100% 2px no-repeat;background-origin:content-box;background-clip:content-box;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .drag-handle:hover{filter:brightness(.8)}
 .item.drag-placeholder{opacity:.45;border:1px dashed var(--red);background:transparent}
 .drag-ghost{position:fixed;z-index:60;margin:0;pointer-events:none;box-shadow:0 16px 34px rgba(30,20,10,.28);transform:rotate(1.2deg) scale(1.02);opacity:.97}
@@ -197,7 +197,7 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
     <h1>東京散策集<br>美感養成之旅</h1>
     <p class="hero-en">Tzuyi &amp; Jiaxin’s Travel</p>
     <p class="hero-date">2026.11.26 — 11.30　／　TOKYO, JAPAN</p>
-    <button class="primary-btn" onclick="document.querySelector('#itinerary').scrollIntoView({behavior:'smooth'})">開始東京散策　↘</button>
+    <button class="primary-btn" onclick="showPage('itin');document.querySelector('#itinerary').scrollIntoView({behavior:'smooth'})">開始東京散策</button>
   </div>
 </header>
 <main>
