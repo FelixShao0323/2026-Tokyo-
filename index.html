@@ -312,6 +312,8 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
     <label for="newMode">交通工具（選填）</label><select id="newMode"></select>
     <label for="newUrl">Google Maps 連結（選填）</label><input id="newUrl" type="text" placeholder="貼上 Google Maps 分享連結，留空則自動搜尋名稱">
     <div class="modal-hint">在 Google Maps 找到地點 → 按「分享」→「複製連結」，再貼到這裡。</div>
+    <label for="newLinkLabel">額外連結的標題（選填）</label><input id="newLinkLabel" type="text" placeholder="例如：展覽資訊、官網、訂位">
+    <label for="newLinkUrl">額外連結的網址（選填）</label><input id="newLinkUrl" type="text" placeholder="貼上網址；留空就不會顯示在卡片上">
     <div class="modal-actions"><button class="outline-btn" onclick="closeAddModal()">取消</button><button class="primary-btn" id="modalSave" onclick="addItem()">新增景點</button></div>
   </div>
 </div>
@@ -370,11 +372,15 @@ const I={
 };
 const MODE_ICON=m=>({"步行":I.walk,"地鐵":I.train,"JR":I.train,"Skyliner":I.train,"巴士":I.bus,"計程車":I.car,"飛機":I.plane}[m]||I.dots);
 const MODES=["步行","地鐵","JR","巴士","計程車","Skyliner","飛機","其他"];
+function openUrl(u){
+  if(window.matchMedia&&matchMedia("(pointer:coarse)").matches){location.href=u}
+  else window.open(u,"_blank","noopener,noreferrer");
+}
 const INFO_LINKS={"國立新美術館":"https://www.nact.jp/exhibition_special/2026/louvre2026/"};
 const STORAGE_KEY="tokyo-sansaku-v1";
 let state = loadState();
 let currentDay = 0;
-function freshState(){return {days:JSON.parse(JSON.stringify(initialDays)).map((d,i)=>({...d,periods:d.periods.map(p=>({...p,items:p.items.map((x,j)=>({id:`d${i}-p${d.periods.indexOf(p)}-${j}`,title:x[0],note:x[1],mode:x[2]||"",done:false}))}))})),shopping:[],expenses:[],rate:0.22,budget:100000,memo:""}}
+function freshState(){return {days:JSON.parse(JSON.stringify(initialDays)).map((d,i)=>({...d,periods:d.periods.map(p=>({...p,items:p.items.map((x,j)=>({id:`d${i}-p${d.periods.indexOf(p)}-${j}`,title:x[0],note:x[1],mode:x[2]||"",linkLabel:INFO_LINKS[x[0]]?"展覽資訊":"",linkUrl:INFO_LINKS[x[0]]||"",done:false}))}))})),shopping:[],expenses:[],rate:0.22,budget:100000,memo:""}}
 function loadState(){try{const saved=localStorage.getItem(STORAGE_KEY);if(saved){const parsed=JSON.parse(saved);if(parsed.days&&parsed.shopping&&parsed.expenses)return parsed}}catch(e){}return freshState()}
 function saveState(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){alert("目前瀏覽器無法保存資料，請匯出 JSON 備份。")}schedulePush()}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -390,8 +396,8 @@ function renderDay(){
 function selectDay(i){currentDay=i;renderDay()}
 function findItem(id){for(let di=0;di<state.days.length;di++)for(let pi=0;pi<state.days[di].periods.length;pi++){const item=state.days[di].periods[pi].items.find(x=>x.id===id);if(item)return {item,di,pi}}return null}
 function toggleItem(id,done){const found=findItem(id);if(found)found.item.done=done;saveState();renderDay()}
-function openMapFor(q){const t=decodeURIComponent(q);window.open(MAP_LINKS[t]||"https://www.google.com/maps/search/?api=1&query="+q,"_blank","noopener,noreferrer")}
-function openMap(q){window.open("https://www.google.com/maps/search/?api=1&query="+q,"_blank","noopener,noreferrer")}
+function openMapFor(q){const t=decodeURIComponent(q);openUrl(MAP_LINKS[t]||"https://www.google.com/maps/search/?api=1&query="+q)}
+function openMap(q){openUrl("https://www.google.com/maps/search/?api=1&query="+q)}
 let editingItemId=null;
 function fillModal(){
   const g=i=>document.getElementById(i);
@@ -405,7 +411,7 @@ function showModal(title,btn){
 }
 function openAddModal(){
   editingItemId=null;fillModal();
-  ["newTitle","newNote","newUrl"].forEach(i=>{document.getElementById(i).value=""});
+  ["newTitle","newNote","newUrl","newLinkLabel","newLinkUrl"].forEach(i=>{document.getElementById(i).value=""});
   document.getElementById("newDay").value=currentDay;showModal("新增行程項目","新增景點");
 }
 function editItem(id){
@@ -414,7 +420,7 @@ function editItem(id){
   const g=i=>document.getElementById(i),pn=state.days[f.di].periods[f.pi].name;
   if(![...g("newPeriod").options].some(o=>o.value===pn))g("newPeriod").insertAdjacentHTML("afterbegin",`<option>${esc(pn)}</option>`);
   g("newDay").value=f.di;g("newPeriod").value=pn;g("newTitle").value=f.item.title;g("newNote").value=f.item.note||"";
-  g("newMode").value=f.item.mode||"";g("newUrl").value=f.item.url||"";
+  g("newMode").value=f.item.mode||"";g("newUrl").value=f.item.url||"";g("newLinkLabel").value=f.item.linkLabel||"";g("newLinkUrl").value=f.item.linkUrl||"";
   showModal("編輯行程","儲存變更");
 }
 function periodFor(di,name){
@@ -425,20 +431,21 @@ function periodFor(di,name){
 function addItem(){
   const g=i=>document.getElementById(i),title=g("newTitle").value.trim();
   if(!title){alert("請輸入景點名稱。");return}
-  const url=g("newUrl").value.trim();
+  const url=g("newUrl").value.trim(),linkLabel=g("newLinkLabel").value.trim(),linkUrl=g("newLinkUrl").value.trim();
   if(url&&!/^https?:\/\//i.test(url)){alert("Google Maps 連結需以 http:// 或 https:// 開頭。");return}
+  if(linkUrl&&!/^https?:\/\//i.test(linkUrl)){alert("額外連結的網址需以 http:// 或 https:// 開頭。");return}
   const di=Number(g("newDay").value),periodName=g("newPeriod").value,note=g("newNote").value.trim(),mode=g("newMode").value;
   if(editingItemId){
     const f=findItem(editingItemId);
     if(!f){closeAddModal();return}
-    Object.assign(f.item,{title,note,mode,url});
+    Object.assign(f.item,{title,note,mode,url,linkLabel,linkUrl});
     if(f.di!==di||state.days[f.di].periods[f.pi].name!==periodName){
       const old=state.days[f.di].periods[f.pi];old.items=old.items.filter(x=>x.id!==f.item.id);
       periodFor(di,periodName).items.push(f.item);
       state.days[f.di].periods=state.days[f.di].periods.filter(q=>q.items.length>0);
     }
   }else{
-    periodFor(di,periodName).items.push({id:"custom-"+Date.now(),title,note,mode,url,done:false});
+    periodFor(di,periodName).items.push({id:"custom-"+Date.now(),title,note,mode,url,linkLabel,linkUrl,done:false});
   }
   editingItemId=null;currentDay=di;saveState();closeAddModal();renderDay();
 }
@@ -548,6 +555,7 @@ function ensureExtras(st){
   if(Array.isArray(st.route)){migrateRoute(st);delete st.route;ch=true}
   if(!Array.isArray(st.places)){st.places=seedPlaces();ch=true}
   if(!Array.isArray(st.packing)){st.packing=seedPacking();ch=true}
+  st.days.forEach(d=>d.periods.forEach(p=>p.items.forEach(i=>{if(i.linkUrl===undefined&&INFO_LINKS[i.title]){i.linkLabel="展覽資訊";i.linkUrl=INFO_LINKS[i.title];ch=true}})));
   st.days.forEach(d=>{const n=d.periods.filter(q=>q.items.length>0);if(n.length!==d.periods.length){d.periods=n;ch=true}});
   return ch;
 }
@@ -569,12 +577,13 @@ document.querySelectorAll('a[href="#itinerary"]').forEach(a=>a.addEventListener(
 function itemCard(item,p,pi,ii,d){
   const m=item.mode?`<span class="mtag">${MODE_ICON(item.mode)}${esc(item.mode)}</span>`:"";
   const rsv=/預約/.test(item.note),inline=!item.mode&&!rsv,ttl=`<div class="item-title${inline?" grow":""}">${esc(item.title)}</div>`;
-  const info=INFO_LINKS[item.title]?`<button class="ico-btn" onclick="window.open(INFO_LINKS[decodeURIComponent('${encodeURIComponent(item.title)}')],'_blank','noopener,noreferrer')">展覽資訊 ↗</button>`:"";
+  const info=item.linkUrl?`<button class="ico-btn" onclick="openItemLink('${item.id}')">${esc(item.linkLabel||"相關連結")}</button>`:"";
   return `<article class="item card ${item.done?"done":""}" data-id="${item.id}"><div class="card-top"><input class="check" type="checkbox" aria-label="完成 ${esc(item.title)}" ${item.done?"checked":""} onchange="toggleItem('${item.id}',this.checked)">${m}${rsv?"<span class='tag red'>需預約</span>":""}${inline?ttl:""}<button class="map-circle" title="在 Google Maps 開啟" aria-label="在 Google Maps 開啟 ${esc(item.title)}" onclick="openItemMap('${item.id}')">${I.pin}</button></div>${inline?"":ttl}${item.note?`<div class="item-note">${esc(item.note)}</div>`:""}<div class="card-actions"><span class="drag-handle" title="按住拖曳排序" aria-label="拖曳排序"></span><span class="sp"></span>${info}<button class="ico-btn" onclick="editItem('${item.id}')">${I.edit}編輯</button><button class="ico-btn" onclick="deleteItem('${item.id}')">${I.trash}刪除</button></div></article>`;
 }
+function openItemLink(id){const f=findItem(id);if(f&&f.item.linkUrl)openUrl(f.item.linkUrl)}
 function openItemMap(id){
   const f=findItem(id);if(!f)return;
-  window.open(f.item.url||MAP_LINKS[f.item.title]||"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(f.item.title),"_blank","noopener,noreferrer");
+  openUrl(f.item.url||MAP_LINKS[f.item.title]||"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(f.item.title));
 }
 function setMode(id,v){const f=findItem(id);if(f){f.item.mode=v;saveState()}}
 function migrateRoute(st){
@@ -592,12 +601,13 @@ function migrateRoute(st){
 let placeFilter="全部",editingPlace=null;
 function setPlaceFilter(c){placeFilter=c;renderPlaces()}
 function placeCard(p){
-  if(editingPlace===p.id)return `<article class="place"><input type="text" id="pe-name" value="${esc(p.name)}" placeholder="名稱"><select id="pe-cat">${PCATS.map(c=>`<option ${c===p.cat?"selected":""}>${c}</option>`).join("")}</select><input type="text" id="pe-area" value="${esc(p.area)}" placeholder="區域"><input type="text" id="pe-tag" value="${esc(p.tag)}" placeholder="種類"><input type="text" id="pe-url" value="${esc(p.url||"")}" placeholder="Google Maps 連結（選填）"><div class="item-actions"><button class="text-btn" onclick="savePlace('${p.id}')">儲存</button><button class="text-btn" onclick="editingPlace=null;renderPlaces()">取消</button></div></article>`;
-  return `<article class="place"><div class="place-head"><div class="place-name">${esc(p.name)}</div><button class="map-circle sm" title="在 Google Maps 開啟" aria-label="在 Google Maps 開啟 ${esc(p.name)}" onclick="openPlaceMap('${p.id}')">${I.pin}</button></div><div>${p.area?`<span class="ptag">${esc(p.area)}</span>`:""}${p.tag?`<span class="ptag type">${esc(p.tag)}</span>`:""}</div><div class="card-actions"><span class="sp"></span><button class="ico-btn" onclick="editingPlace='${p.id}';renderPlaces()">${I.edit}編輯</button><button class="ico-btn" onclick="deletePlace('${p.id}')">${I.trash}刪除</button></div></article>`;
+  if(editingPlace===p.id)return `<article class="place"><input type="text" id="pe-name" value="${esc(p.name)}" placeholder="名稱"><select id="pe-cat">${PCATS.map(c=>`<option ${c===p.cat?"selected":""}>${c}</option>`).join("")}</select><input type="text" id="pe-area" value="${esc(p.area)}" placeholder="區域"><input type="text" id="pe-tag" value="${esc(p.tag)}" placeholder="種類"><input type="text" id="pe-url" value="${esc(p.url||"")}" placeholder="Google Maps 連結（選填）"><input type="text" id="pe-ll" value="${esc(p.linkLabel||"")}" placeholder="額外連結標題（如 官網、訂位）"><input type="text" id="pe-lu" value="${esc(p.linkUrl||"")}" placeholder="額外連結網址（選填）"><div class="item-actions"><button class="text-btn" onclick="savePlace('${p.id}')">儲存</button><button class="text-btn" onclick="editingPlace=null;renderPlaces()">取消</button></div></article>`;
+  return `<article class="place"><div class="place-head"><div class="place-name">${esc(p.name)}</div><button class="map-circle sm" title="在 Google Maps 開啟" aria-label="在 Google Maps 開啟 ${esc(p.name)}" onclick="openPlaceMap('${p.id}')">${I.pin}</button></div><div>${p.area?`<span class="ptag">${esc(p.area)}</span>`:""}${p.tag?`<span class="ptag type">${esc(p.tag)}</span>`:""}</div><div class="card-actions"><span class="sp"></span>${p.linkUrl?`<button class="ico-btn" onclick="openPlaceLink('${p.id}')">${esc(p.linkLabel||"相關連結")}</button>`:""}<button class="ico-btn" onclick="editingPlace='${p.id}';renderPlaces()">${I.edit}編輯</button><button class="ico-btn" onclick="deletePlace('${p.id}')">${I.trash}刪除</button></div></article>`;
 }
+function openPlaceLink(id){const p=state.places.find(x=>x.id===id);if(p&&p.linkUrl)openUrl(p.linkUrl)}
 function openPlaceMap(id){
   const p=state.places.find(x=>x.id===id);if(!p)return;
-  window.open(p.url||MAP_LINKS[p.name]||"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(p.name),"_blank","noopener,noreferrer");
+  openUrl(p.url||MAP_LINKS[p.name]||"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(p.name));
 }
 function renderPlaces(){
   const cnt=c=>c==="全部"?state.places.length:state.places.filter(p=>p.cat===c).length;
@@ -608,7 +618,7 @@ function renderPlaces(){
 function savePlace(id){
   const p=state.places.find(x=>x.id===id);if(!p)return;
   const n=document.getElementById("pe-name").value.trim();if(!n){alert("名稱不能空白。");return}
-  p.name=n;p.cat=document.getElementById("pe-cat").value;p.area=document.getElementById("pe-area").value.trim();p.tag=document.getElementById("pe-tag").value.trim();const u=document.getElementById("pe-url").value.trim();if(u&&!/^https?:\/\//i.test(u)){alert("Google Maps 連結需以 http:// 或 https:// 開頭。");return}p.url=u;
+  p.name=n;p.cat=document.getElementById("pe-cat").value;p.area=document.getElementById("pe-area").value.trim();p.tag=document.getElementById("pe-tag").value.trim();const u=document.getElementById("pe-url").value.trim();if(u&&!/^https?:\/\//i.test(u)){alert("Google Maps 連結需以 http:// 或 https:// 開頭。");return}const lu=document.getElementById("pe-lu").value.trim();if(lu&&!/^https?:\/\//i.test(lu)){alert("額外連結的網址需以 http:// 或 https:// 開頭。");return}p.url=u;p.linkLabel=document.getElementById("pe-ll").value.trim();p.linkUrl=lu;
   editingPlace=null;saveState();renderPlaces();
 }
 function deletePlace(id){
