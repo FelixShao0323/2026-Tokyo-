@@ -134,6 +134,7 @@ main{max-width:1180px;margin:auto;padding:0 clamp(16px,4vw,48px) 80px}
 .place-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
 .modal-hint{font-size:12px;color:var(--brown);margin:-4px 0 12px}
 .modal{max-height:92vh;overflow:auto}
+.def-notice{flex:1 1 100%;background:#F6E7C8;color:var(--ink);padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5}
 .text-btn{border:0;background:none;padding:0;color:#9a6e30;font-size:11px;text-decoration:underline;text-underline-offset:3px}
 .tag{display:inline-block;background:#f3ead8;color:#84672e;font-size:10px;padding:2px 7px;margin:0 0 5px 5px}
 .tag.red{background:#fbe7e2;color:#b73a26}
@@ -218,7 +219,7 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
   <nav class="page-tabs" id="pageTabs"></nav>
   <section id="itinerary" data-page="itin">
     <div class="section-head"><div><div class="kicker">01 / Itinerary</div><h2>每日行程</h2></div><div class="muted">勾選、新增、編輯都會自動保存；開啟同步後兩人即時連動</div></div>
-    <div class="sync-bar"><span id="syncStatus">☁ 尚未開啟同步（資料只存在這台裝置）</span><button class="outline-btn" onclick="setupSync()">設定同步代碼</button><button class="outline-btn" onclick="copyInvite()">複製邀請連結</button></div>
+    <div class="sync-bar"><div class="def-notice" id="defNotice" hidden>手冊行程有新版本：請按頁面最下方的「套用最新版預設行程」更新。你的勾選、交通工具與連結會保留，兩個人只要一個人按就好。</div><span id="syncStatus">☁ 尚未開啟同步（資料只存在這台裝置）</span><button class="outline-btn" onclick="setupSync()">設定同步代碼</button><button class="outline-btn" onclick="copyInvite()">複製邀請連結</button></div>
     <div class="day-tabs" id="dayTabs"></div>
     <div class="day-banner"><div><h3 id="dayTitle"></h3><p id="dayTheme"></p></div><div class="progress-wrap"><div class="progress-label"><span>今日完成進度</span><span id="progressText">0%</span></div><div class="progress"><span id="progressBar"></span></div></div></div>
     <div class="muted drag-hint">按住景點左側的 ⋮⋮ 圓點，即可拖曳調整順序，也能拖到其他時段。</div>
@@ -328,28 +329,29 @@ const initialDays = [
   {name:"下午",items:[["麻布台之丘 33–34F","麻布台散策"],["Pace Gallery","麻布台散策"],["21_21 DESIGN SIGHT","六本木藝文散策"],["Ota Gallery","六本木藝文散策"],["國立新美術館","六本木藝文散策"],["けやき坂イルミネーション","聖誕點燈"],["毛利庭園","聖誕點燈"],["森美術館","《森万里子：燦燦》"]]},
   {name:"晚上",items:[["和牛すき焼 そしじ 麻布十番店","麻布台晚餐"]]}
  ]},
- {date:"11.27",dow:"FRI",theme:"新宿・澀谷與城市文化散策",flight:"",periods:[
-  {name:"上午",items:[["新宿御苑","新宿"]]},
-  {name:"下午",items:[["Bic Camera","澀谷｜購物"],["SHIBUYA SKY","澀谷｜需要預約（要預訂！）"],["AMAM DACOTAN","澀谷｜麵包店"],["Tea Bar 聴景居","澀谷｜抹茶店"]]},
-  {name:"晚上",items:[["渋谷森本 うなぎ・焼き鳥","澀谷晚餐"]]}
- ]},
- {date:"11.28",dow:"SAT",theme:"築地・銀座與淺草散策",flight:"",periods:[
-  {name:"上午",items:[["築地市場","築地"],["高輪 GATEWAY CITY","上午行程"]]},
+ {date:"11.27",dow:"FRI",theme:"築地・銀座與代官山",flight:"",periods:[
+  {name:"上午",items:[["築地市場","築地"]]},
   {name:"銀座散策",items:[["Bic Camera","銀座｜購物"],["GINZA SIX","銀座｜購物"],["UNIQLO","銀座｜購物"],["資生堂美術館","銀座｜美術館"]]},
   {name:"午餐",items:[["五代目 花山烏冬","銀座午餐｜烏龍麵店"]]},
-  {name:"下午",items:[["淺草寺","淺草"],["龜十銅鑼燒","淺草｜甜點"],["淺草炸肉餅","淺草｜小吃"],["hibi 10MINUTES","香氛店"],["阿美橫町","藥妝"]]},
-  {name:"晚上",items:[["本とさや 東京","淺草晚餐"],["牛たんの檸檬 浅草店","淺草晚餐"]]}
- ]},
- {date:"11.29",dow:"SUN",theme:"皇居・神田神社與原宿",flight:"",periods:[
-  {name:"上午",items:[["皇居・江戶城","皇居"],["神田神社","神社"]]},
-  {name:"下午",items:[["明治神宮","原宿"],["＠cosme TOKYO","原宿｜美妝店"],["neel 神宮前","原宿｜咖啡廳"],["MASONO / wabi","原宿｜抹茶店"],["SHAKA SHAKA MATCHA","原宿｜抹茶店"]]},
+  {name:"下午",items:[["蔦屋書店","代官山｜書店"],["Tea Bar 聴景居","代官山｜抹茶店"]]},
   {name:"晚上",items:[["赤坂晚餐","餐廳可再補上"]]}
  ]},
- {date:"11.30",dow:"MON",theme:"新宿・上野散策與返程",flight:"酷航 TR 875｜NRT → TPE｜19:45–22:55",periods:[
-  {name:"下午",items:[["神樂坂","新宿"],["Abicajo Butter","新宿｜甜點店"],["日蓮宗 法輪寺","上野"],["小網神社","上野｜招財神社"],["OZEKI Tokyo Gallery","上野｜燈飾店"]]},
+ {date:"11.28",dow:"SAT",theme:"皇居・日本橋・上野與淺草",flight:"",periods:[
+  {name:"上午",items:[["皇居","9:00 後有賞楓活動"]]},
+  {name:"下午",items:[["小網神社","日本橋"],["福德神社","日本橋"],["上野恩賜公園","上野"],["阿美橫町","上野｜藥妝"],["東京都美術館","上野"],["淺草寺","淺草"],["龜十銅鑼燒","淺草｜甜點"],["淺草炸肉餅","淺草｜小吃"],["hibi 10MINUTES","香氛店"]]},
+  {name:"晚上",items:[["本とさや 東京","淺草晚餐"],["牛たんの檸檬 浅草店","淺草晚餐"]]}
+ ]},
+ {date:"11.29",dow:"SUN",theme:"新宿・原宿與澀谷",flight:"",periods:[
+  {name:"上午",items:[["新宿御苑","新宿"]]},
+  {name:"下午",items:[["明治神宮","原宿"],["＠cosme TOKYO","原宿｜美妝店"],["neel 神宮前","原宿｜咖啡廳"],["MASONO / wabi","原宿｜抹茶店"],["SHAKA SHAKA MATCHA","原宿｜抹茶店"],["SHIBUYA SKY","澀谷｜已預訂 16:00 入場"],["AMAM DACOTAN","澀谷｜麵包店"]]},
+  {name:"晚上",items:[["渋谷森本 うなぎ・焼き鳥","澀谷晚餐"]]}
+ ]},
+ {date:"11.30",dow:"MON",theme:"高輪與返程",flight:"酷航 TR 875｜NRT → TPE｜19:45–22:55",periods:[
+  {name:"上午",items:[["高輪 GATEWAY CITY","高輪"]]},
   {name:"返程",items:[["回赤坂拿行李","前往機場前"],["前往成田機場","請預留交通與報到時間"],["東京成田機場 NRT","酷航 TR 875｜19:45 起飛"],["抵達台灣桃園機場 TPE","22:55 抵達","飛機"]]}
  ]}
 ];
+const DEFAULTS_VER=3;
 const MAP_LINKS={
  "和牛すき焼 そしじ 麻布十番店":"https://www.google.com/maps/place/Sukiyaki+restaurant/@35.6574678,139.7298828,17z/data=!3m1!4b1!4m6!3m5!1s0x60188b59dce92533:0x4edcca0a63a9615c!8m2!3d35.6574635!4d139.7324577!16s%2Fg%2F11ylmb29r8",
  "渋谷森本 うなぎ・焼き鳥":"https://www.google.com/maps/place/Shibuya+Morimoto/@35.6585895,139.6960811,17z/data=!3m2!4b1!5s0x60188b562c600ac3:0xb1046027eff2b4cd!4m6!3m5!1s0x60188b562c66b20d:0xbf11df5152df251c!8m2!3d35.6585852!4d139.698656!16s%2Fg%2F1vvdv5__",
@@ -380,7 +382,7 @@ const INFO_LINKS={"國立新美術館":"https://www.nact.jp/exhibition_special/2
 const STORAGE_KEY="tokyo-sansaku-v1";
 let state = loadState();
 let currentDay = 0;
-function freshState(){return {days:JSON.parse(JSON.stringify(initialDays)).map((d,i)=>({...d,periods:d.periods.map(p=>({...p,items:p.items.map((x,j)=>({id:`d${i}-p${d.periods.indexOf(p)}-${j}`,title:x[0],note:x[1],mode:x[2]||"",linkLabel:INFO_LINKS[x[0]]?"展覽資訊":"",linkUrl:INFO_LINKS[x[0]]||"",done:false}))}))})),shopping:[],expenses:[],rate:0.22,budget:100000,memo:""}}
+function freshState(){return {days:JSON.parse(JSON.stringify(initialDays)).map((d,i)=>({...d,periods:d.periods.map(p=>({...p,items:p.items.map((x,j)=>({id:`d${i}-p${d.periods.indexOf(p)}-${j}`,title:x[0],note:x[1],mode:x[2]||"",linkLabel:INFO_LINKS[x[0]]?"展覽資訊":"",linkUrl:INFO_LINKS[x[0]]||"",done:false}))}))})),shopping:[],expenses:[],rate:0.22,budget:100000,memo:"",defVer:DEFAULTS_VER}}
 function loadState(){try{const saved=localStorage.getItem(STORAGE_KEY);if(saved){const parsed=JSON.parse(saved);if(parsed.days&&parsed.shopping&&parsed.expenses)return parsed}}catch(e){}return freshState()}
 function saveState(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){alert("目前瀏覽器無法保存資料，請匯出 JSON 備份。")}schedulePush()}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -481,7 +483,7 @@ function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"
 function importData(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!data.days||!data.shopping||!data.expenses)throw new Error("格式不正確");if(!confirm("匯入會以備份內容取代目前網站資料，確定繼續？"))return;state=data;ensureExtras(state);saveState();currentDay=0;syncInputs();renderAll();alert("匯入成功。")}catch(err){alert("匯入失敗：檔案格式不正確或內容不完整。")}e.target.value=""};reader.readAsText(file)}
 function setVal(id,v){const el=document.getElementById(id);if(document.activeElement!==el)el.value=v}
 function syncInputs(){setVal("exchangeRate",state.rate??0.22);setVal("tripBudget",state.budget??100000);setVal("memo",state.memo||"")}
-function renderAll(){renderDay();renderShopping();renderExpenses();syncInputs();renderPlaces();renderPacking()}
+function renderAll(){renderDay();renderShopping();renderExpenses();syncInputs();updateNotice();renderPlaces();renderPacking()}
 document.getElementById("modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeAddModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAddModal()});
 /* ===== 新分頁：每日行程／收藏景點／行李打包 ===== */
@@ -497,38 +499,36 @@ Ota Gallery|景點|六本木|藝廊
 けやき坂イルミネーション|景點|六本木|聖誕燈飾
 高輪 GATEWAY CITY|景點|高輪|散策
 新宿御苑|景點|新宿|公園
-SHIBUYA SKY|景點|澀谷|展望台（需預約）
+SHIBUYA SKY|景點|澀谷|展望台（已預訂 16:00）
 築地市場|景點|築地|市場
 資生堂美術館|景點|銀座|美術館
 明治神宮|景點|原宿|神社
-小網神社|景點|日本橋|神社（招財）
-OZEKI Tokyo Gallery|景點|上野|燈飾店
+皇居|景點|皇居|賞楓（9:00 後有活動）
+小網神社|景點|日本橋|神社
+福德神社|景點|日本橋|神社
+上野恩賜公園|景點|上野|公園
+東京都美術館|景點|上野|美術館
 淺草寺|景點|淺草|寺院
-皇居・江戶城|景點|皇居|歷史
-神田神社|景點|神田|神社
-神樂坂|景點|神樂坂|散策
-日蓮宗 法輪寺|景點|上野|寺院
 九州じゃんがら 赤坂店|餐廳|赤坂|拉麵
 和牛すき焼 そしじ 麻布十番店|餐廳|麻布十番|壽喜燒
 渋谷森本 うなぎ・焼き鳥|餐廳|澀谷|鰻魚／串燒
 牛たんの檸檬 浅草店|餐廳|淺草|牛舌
 五代目 花山烏冬|餐廳|銀座|烏龍麵
 本とさや 東京|餐廳|淺草|晚餐
-Bic Camera（澀谷）|逛街|澀谷|家電／藥妝
 Bic Camera（銀座）|逛街|銀座|家電／藥妝
 GINZA SIX|逛街|銀座|百貨
 UNIQLO|逛街|銀座|服飾
 ＠cosme TOKYO|逛街|原宿|美妝
 hibi 10MINUTES|逛街|淺草|香氛
 阿美橫町|逛街|上野|藥妝／購物
+蔦屋書店|逛街|代官山|書店
 AMAM DACOTAN|點心|澀谷|麵包
-Tea Bar 聴景居|點心|澀谷|抹茶
+Tea Bar 聴景居|點心|代官山|抹茶
 neel 神宮前|點心|原宿|咖啡
 MASONO / wabi|點心|原宿|抹茶
 SHAKA SHAKA MATCHA|點心|原宿|抹茶
 龜十銅鑼燒|點心|淺草|和菓子
-淺草炸肉餅|點心|淺草|小吃
-Abicajo Butter|點心|神樂坂|甜點`;
+淺草炸肉餅|點心|淺草|小吃`;
 const PACK_SEED=`carry|護照
 carry|機票／電子登機證
 carry|手機與充電線
@@ -820,9 +820,23 @@ function copyInvite(){
     navigator.clipboard.writeText(link).then(()=>alert("已複製邀請連結，傳給對方打開就會自動連動。")).catch(()=>prompt("請長按複製這個連結：",link));
   }else{prompt("請長按複製這個連結：",link)}
 }
+function updateNotice(){const n=document.getElementById("defNotice");if(n)n.hidden=state.defVer===DEFAULTS_VER}
 function resetItinerary(){
-  if(!confirm("確定套用最新版預設內容？\n行程清單、每日行程、收藏景點會換成最新版（勾選與你新增、編輯過的內容會被取代）；購物清單、支出、預算、備忘錄、行李打包不受影響。\n兩個人同步時，只要一個人按就好。"))return;
-  state.days=freshState().days;state.places=seedPlaces();
+  if(!confirm("確定套用最新版手冊內容？\n行程與收藏景點會換成最新版。名稱沒變的景點，會保留你的勾選、交通工具、地圖連結和額外連結；你自己新增的景點也會保留，其他編輯會被取代。\n購物清單、支出、預算、備忘錄、行李打包不受影響。\n兩個人同步時，只要一個人按就好。"))return;
+  const old=new Map(),custom=[];
+  state.days.forEach((d,di)=>d.periods.forEach(p=>p.items.forEach(i=>{old.set(i.title,i);if(String(i.id).startsWith("custom-"))custom.push([di,p.name,i])})));
+  const fresh=freshState();
+  fresh.days.forEach(d=>d.periods.forEach(p=>p.items.forEach(i=>{
+    const o=old.get(i.title);if(!o)return;
+    if(o.done)i.done=true;if(o.mode)i.mode=o.mode;if(o.url)i.url=o.url;
+    if(o.linkUrl!==undefined){i.linkLabel=o.linkLabel||"";i.linkUrl=o.linkUrl}
+  })));
+  state.days=fresh.days;
+  custom.forEach(([di,pn,it])=>{if(state.days[di])periodFor(di,pn).items.push(it)});
+  const oldPlaces=state.places||[];
+  const np=seedPlaces().map(x=>{const o=oldPlaces.find(y=>y.name===x.name);if(o)["url","linkLabel","linkUrl"].forEach(k=>{if(o[k]!==undefined)x[k]=o[k]});return x});
+  state.places=np.concat(oldPlaces.filter(x=>!/^p\d+$/.test(x.id)&&!np.some(y=>y.name===x.name)));
+  state.defVer=DEFAULTS_VER;
   currentDay=0;editingPlace=null;placeFilter="全部";saveState();renderAll();
 }
 if(initFirebase()){
