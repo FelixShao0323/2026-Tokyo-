@@ -153,6 +153,18 @@ html{scroll-padding-top:calc(var(--tabsH,60px) + 8px)}
 .mp{font-size:13px;line-height:1.6}
 .mp-warn{color:var(--brown);font-size:12px}
 .mp-btn{margin-top:6px;border:1px solid var(--line);background:#F1E9DC;color:var(--brown);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:12px}
+.addr-row{display:flex;gap:8px;align-items:stretch;margin-bottom:6px}
+.addr-row input{flex:1 1 auto;min-width:0;max-width:none}
+.addr-row button{flex:0 0 auto;white-space:nowrap}
+.map-search{margin:6px 0 8px}
+.map-box{position:relative}
+.map-full-btn{position:absolute;top:10px;right:10px;z-index:500;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fffefa;color:var(--brown);border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.2)}
+.map-full-btn svg{width:18px;height:18px;fill:currentColor}
+#mapWrap.full{position:fixed;inset:0;z-index:150;background:var(--cream);display:flex;flex-direction:column;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));padding-bottom:max(10px,env(safe-area-inset-bottom))}
+#mapWrap.full .chips{flex-wrap:nowrap;overflow-x:auto;flex:0 0 auto;-webkit-overflow-scrolling:touch}
+#mapWrap.full .chip{flex:0 0 auto;white-space:nowrap}
+#mapWrap.full .map-box{flex:1 1 auto;min-height:0;margin-top:4px}
+#mapWrap.full #tripMap{height:100%;min-height:0;margin-top:0;border-radius:12px}
 .text-btn{border:0;background:none;padding:0;color:#9a6e30;font-size:11px;text-decoration:underline;text-underline-offset:3px}
 .tag{display:inline-block;background:#f3ead8;color:#84672e;font-size:10px;padding:2px 7px;margin:0 0 5px 5px}
 .tag.red{background:#fbe7e2;color:#b73a26}
@@ -254,9 +266,12 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
 
   <section id="map" data-page="map" hidden>
     <div class="section-head"><div><div class="kicker">Trip Map</div><h2>行程地圖</h2></div><div class="muted">依每天行程順序編號；虛線圈的是約略位置，可開啟「修正位置」後拖曳圖釘。</div></div>
-    <div class="chips" id="mapChips"></div>
-    <div class="muted" id="mapMsg"></div>
-    <div id="tripMap"></div>
+    <div id="mapWrap">
+      <div class="chips" id="mapChips"></div>
+      <div class="addr-row map-search"><input id="mapQ" type="text" placeholder="搜尋地址或地點，會在地圖上標出（例如：東京都港区赤坂9-7-1）" onkeydown="if(event.key==='Enter')searchMap()"><button class="outline-btn" onclick="searchMap()">搜尋</button></div>
+      <div class="muted" id="mapMsg"></div>
+      <div class="map-box" id="mapBox"><div id="tripMap"></div><button class="map-full-btn" id="mapFullBtn" onclick="toggleMapFull()"></button></div>
+    </div>
     <div class="map-list" id="mapList"></div>
   </section>
   <section id="places" data-page="places" hidden>
@@ -338,6 +353,9 @@ input[type=text],input[type=number],input[type=date],select,textarea{width:100%;
     <label for="newMode">交通工具（選填）</label><select id="newMode"></select>
     <label for="newUrl">Google Maps 連結（選填）</label><input id="newUrl" type="text" placeholder="貼上 Google Maps 分享連結，留空則自動搜尋名稱">
     <div class="modal-hint">在 Google Maps 找到地點 → 按「分享」→「複製連結」，再貼到這裡。完整連結也會一併更新地圖上的位置；短連結（maps.app.goo.gl）抓不到位置，請到「行程地圖」拖曳修正。</div>
+    <label for="newAddr">地址或地點（選填，用來定位）</label>
+    <div class="addr-row"><input id="newAddr" type="text" placeholder="例如：東京都港区赤坂9-7-1" oninput="modalGeo=null"><button type="button" class="outline-btn" onclick="lookupAddr()">搜尋位置</button></div>
+    <div class="modal-hint" id="addrMsg"></div>
     <label for="newLinkLabel">額外連結的標題（選填）</label><input id="newLinkLabel" type="text" placeholder="例如：展覽資訊、官網、訂位">
     <label for="newLinkUrl">額外連結的網址（選填）</label><input id="newLinkUrl" type="text" placeholder="貼上網址；留空就不會顯示在卡片上">
     <div class="modal-actions"><button class="outline-btn" onclick="closeAddModal()">取消</button><button class="primary-btn" id="modalSave" onclick="addItem()">新增景點</button></div>
@@ -397,6 +415,8 @@ const I={
  bus:svgi("M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM18 11H6V6h12v5z"),
  car:svgi("M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm11 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM5 11l1.5-4.5h11L19 11H5z"),
  walk:svgi("M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7z"),
+ full:svgi("M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"),
+ exitfull:svgi("M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"),
  dots:svgi("M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm12 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z")
 };
 const MODE_ICON=m=>({"步行":I.walk,"地鐵":I.train,"JR":I.train,"Skyliner":I.train,"巴士":I.bus,"計程車":I.car,"飛機":I.plane}[m]||I.dots);
@@ -446,7 +466,7 @@ function findItem(id){for(let di=0;di<state.days.length;di++)for(let pi=0;pi<sta
 function toggleItem(id,done){const found=findItem(id);if(found)found.item.done=done;saveState();renderDay()}
 function openMapFor(q){const t=decodeURIComponent(q);openUrl(MAP_LINKS[t]||"https://www.google.com/maps/search/?api=1&query="+q)}
 function openMap(q){openUrl("https://www.google.com/maps/search/?api=1&query="+q)}
-let editingItemId=null;
+let editingItemId=null,modalGeo=null;
 function fillModal(){
   const g=i=>document.getElementById(i);
   g("newDay").innerHTML=state.days.map((d,i)=>`<option value="${i}">Day ${i+1}｜${d.date}</option>`).join("");
@@ -459,7 +479,7 @@ function showModal(title,btn){
 }
 function openAddModal(){
   editingItemId=null;fillModal();
-  ["newTitle","newNote","newUrl","newLinkLabel","newLinkUrl"].forEach(i=>{document.getElementById(i).value=""});
+  modalGeo=null;document.getElementById("addrMsg").textContent="";["newTitle","newNote","newUrl","newAddr","newLinkLabel","newLinkUrl"].forEach(i=>{document.getElementById(i).value=""});
   document.getElementById("newDay").value=currentDay;showModal("新增行程項目","新增景點");
 }
 function editItem(id){
@@ -468,7 +488,7 @@ function editItem(id){
   const g=i=>document.getElementById(i),pn=state.days[f.di].periods[f.pi].name;
   if(![...g("newPeriod").options].some(o=>o.value===pn))g("newPeriod").insertAdjacentHTML("afterbegin",`<option>${esc(pn)}</option>`);
   g("newDay").value=f.di;g("newPeriod").value=pn;g("newTitle").value=f.item.title;g("newNote").value=f.item.note||"";
-  g("newMode").value=f.item.mode||"";g("newUrl").value=f.item.url||"";g("newLinkLabel").value=f.item.linkLabel||"";g("newLinkUrl").value=f.item.linkUrl||"";
+  g("newMode").value=f.item.mode||"";g("newUrl").value=f.item.url||"";g("newLinkLabel").value=f.item.linkLabel||"";g("newLinkUrl").value=f.item.linkUrl||"";g("newAddr").value=f.item.addr||"";modalGeo=null;g("addrMsg").textContent="";
   showModal("編輯行程","儲存變更");
 }
 function periodFor(di,name){
@@ -479,23 +499,23 @@ function periodFor(di,name){
 function addItem(){
   const g=i=>document.getElementById(i),title=g("newTitle").value.trim();
   if(!title){alert("請輸入景點名稱。");return}
-  const url=g("newUrl").value.trim(),linkLabel=g("newLinkLabel").value.trim(),linkUrl=g("newLinkUrl").value.trim();
+  const addr=g("newAddr").value.trim(),url=g("newUrl").value.trim(),linkLabel=g("newLinkLabel").value.trim(),linkUrl=g("newLinkUrl").value.trim();
   if(url&&!/^https?:\/\//i.test(url)){alert("Google Maps 連結需以 http:// 或 https:// 開頭。");return}
   if(linkUrl&&!/^https?:\/\//i.test(linkUrl)){alert("額外連結的網址需以 http:// 或 https:// 開頭。");return}
   const di=Number(g("newDay").value),periodName=g("newPeriod").value,note=g("newNote").value.trim(),mode=g("newMode").value;
   if(editingItemId){
     const f=findItem(editingItemId);
     if(!f){closeAddModal();return}
-    const oldUrl=f.item.url||"";Object.assign(f.item,{title,note,mode,url,linkLabel,linkUrl});const cc=url&&url!==oldUrl?coordsFromUrl(url):null;if(cc){f.item.lat=cc[0];f.item.lng=cc[1];f.item.approx=0}
+    const oldUrl=f.item.url||"";Object.assign(f.item,{title,note,mode,url,linkLabel,linkUrl,addr});const cc=url&&url!==oldUrl?coordsFromUrl(url):null;if(cc){f.item.lat=cc[0];f.item.lng=cc[1];f.item.approx=0}else if(modalGeo){f.item.lat=modalGeo.lat;f.item.lng=modalGeo.lng;f.item.approx=1}
     if(f.di!==di||state.days[f.di].periods[f.pi].name!==periodName){
       const old=state.days[f.di].periods[f.pi];old.items=old.items.filter(x=>x.id!==f.item.id);
       periodFor(di,periodName).items.push(f.item);
       state.days[f.di].periods=state.days[f.di].periods.filter(q=>q.items.length>0);
     }
   }else{
-    const ni={id:"custom-"+Date.now(),title,note,mode,url,linkLabel,linkUrl,done:false},nc=url?coordsFromUrl(url):null;if(nc){ni.lat=nc[0];ni.lng=nc[1];ni.approx=0}periodFor(di,periodName).items.push(ni);
+    const ni={id:"custom-"+Date.now(),title,note,mode,url,linkLabel,linkUrl,addr,done:false},nc=url?coordsFromUrl(url):null;if(nc){ni.lat=nc[0];ni.lng=nc[1];ni.approx=0}else if(modalGeo){ni.lat=modalGeo.lat;ni.lng=modalGeo.lng;ni.approx=1}periodFor(di,periodName).items.push(ni);
   }
-  editingItemId=null;currentDay=di;saveState();closeAddModal();renderDay();
+  editingItemId=null;modalGeo=null;currentDay=di;saveState();closeAddModal();renderDay();
 }
 function closeAddModal(){document.getElementById("modalBackdrop").classList.remove("show")}
 function deleteItem(id){const f=findItem(id);if(!f)return;if(!confirm(`確定刪除「${f.item.title}」？`))return;state.days[f.di].periods[f.pi].items=state.days[f.di].periods[f.pi].items.filter(x=>x.id!==id);state.days[f.di].periods=state.days[f.di].periods.filter(q=>q.items.length>0);saveState();renderDay()}
@@ -613,6 +633,7 @@ const PAGES=[["itin","每日行程"],["map","行程地圖"],["places","收藏景
 let page="itin";
 try{const sp=localStorage.getItem("tokyo-page");if(PAGES.some(x=>x[0]===sp))page=sp}catch(e){}
 function showPage(p,scroll){
+  if(mapFull&&p!=="map")toggleMapFull(false);
   page=p;try{localStorage.setItem("tokyo-page",p)}catch(e){}
   document.querySelectorAll("[data-page]").forEach(el=>{el.hidden=el.dataset.page!==p});
   document.getElementById("pageTabs").innerHTML=PAGES.map(([k,n])=>`<button class="page-tab ${k===p?"active":""}" onclick="showPage('${k}',true)">${n}</button>`).join("");
@@ -714,11 +735,21 @@ function dayEntries(di){
   return out;
 }
 function missingItems(){const o=[];state.days.forEach(d=>d.periods.forEach(p=>p.items.forEach(i=>{if(!hasGeo(i)&&!NOMAP.test(i.title))o.push(i)})));return o}
+let mapFull=false;
+function updateFullBtn(){const b=document.getElementById("mapFullBtn");if(b)b.innerHTML=(mapFull?I.exitfull+"結束全螢幕":I.full+"全螢幕")}
+function toggleMapFull(force){
+  mapFull=typeof force==="boolean"?force:!mapFull;
+  document.getElementById("mapWrap").classList.toggle("full",mapFull);
+  document.body.style.overflow=mapFull?"hidden":"";
+  updateFullBtn();
+  setTimeout(()=>{if(tripMap&&tripMap.invalidateSize)tripMap.invalidateSize()},60);
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&mapFull)toggleMapFull(false)});
 function setMapDay(d){mapDay=d;renderMap()}
 function toggleFix(){fixMode=!fixMode;renderMap()}
 function mapPopup(x){
   const i=x.item;
-  return `<div class="mp"><b>${esc(i.title)}</b><div>DAY ${x.di+1}｜${esc(x.period)}</div>${i.note?`<div>${esc(i.note)}</div>`:""}${i.approx?'<div class="mp-warn">位置為約略值</div>':""}<button class="mp-btn" onclick="openItemMap('${i.id}')">在 Google Maps 開啟</button></div>`;
+  return `<div class="mp"><b>${esc(i.title)}</b><div>DAY ${x.di+1}｜${esc(x.period)}</div>${i.note?`<div>${esc(i.note)}</div>`:""}${i.addr?`<div>${esc(i.addr)}</div>`:""}${i.approx?'<div class="mp-warn">位置為約略值</div>':""}<button class="mp-btn" onclick="openItemMap('${i.id}')">在 Google Maps 開啟</button></div>`;
 }
 function renderMapChips(){
   const miss=missingItems().length;
@@ -741,7 +772,7 @@ function focusPin(id){const m=markerById[id];if(!m||!tripMap)return;const ll=m.g
 function renderMap(){
   const box=document.getElementById("tripMap"),msg=document.getElementById("mapMsg");
   if(!box)return;
-  renderMapChips();
+  renderMapChips();updateFullBtn();
   if(!window.L){msg.textContent="地圖元件無法載入，請確認網路後重新整理。";box.hidden=true;renderMapList();return}
   box.hidden=false;if(!geoBusy)msg.textContent="";
   if(!tripMap){
@@ -767,6 +798,38 @@ function renderMap(){
   const key=mapDay+"|"+pts.length;
   if(pts.length&&key!==lastFit){tripMap.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:16});lastFit=key}
   renderMapList();
+}
+async function geocodeQuery(q){
+  const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&viewbox=138.9,36.0,140.5,35.2&q="+encodeURIComponent(q));
+  const j=await r.json();
+  return j&&j[0]?{lat:+(+j[0].lat).toFixed(6),lng:+(+j[0].lon).toFixed(6),name:j[0].display_name}:null;
+}
+async function lookupAddr(){
+  const q=document.getElementById("newAddr").value.trim(),msg=document.getElementById("addrMsg");
+  if(!q){msg.textContent="請先輸入地址或地點名稱。";return}
+  msg.textContent="搜尋中…";
+  try{
+    const r=await geocodeQuery(q);
+    if(!r){modalGeo=null;msg.textContent="找不到這個地址。可以改成更完整的地址，或貼上 Google Maps 連結。";return}
+    modalGeo={lat:r.lat,lng:r.lng};
+    msg.textContent="已找到："+r.name+"　（按「儲存」後，地圖位置會更新；位置為約略值）";
+  }catch(e){modalGeo=null;msg.textContent="搜尋失敗，請確認網路後再試。"}
+}
+let searchMarker=null;
+async function searchMap(){
+  const q=document.getElementById("mapQ").value.trim(),msg=document.getElementById("mapMsg");
+  if(!q)return;
+  if(!window.L||!tripMap){renderMap();if(!tripMap)return}
+  msg.textContent="搜尋中…";
+  try{
+    const r=await geocodeQuery(q);
+    if(!r){msg.textContent="找不到這個地址或地點，可以試試更完整的地址。";return}
+    if(searchMarker&&tripMap.removeLayer)tripMap.removeLayer(searchMarker);
+    searchMarker=L.marker([r.lat,r.lng],{icon:L.divIcon({className:"trip-pin-wrap",html:'<div class="trip-pin" style="background:#3a3228">★</div>',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-14]})}).addTo(tripMap);
+    searchMarker.bindPopup(`<div class="mp"><b>${esc(q)}</b><div>${esc(r.name)}</div></div>`);
+    tripMap.setView([r.lat,r.lng],17);searchMarker.openPopup();
+    msg.textContent="已標出搜尋結果（★）。";
+  }catch(e){msg.textContent="搜尋失敗，請確認網路後再試。"}
 }
 async function geocodeMissing(){
   if(geoBusy)return;
